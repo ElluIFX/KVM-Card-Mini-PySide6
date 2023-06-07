@@ -1,19 +1,19 @@
 #include "ws2812b.h"
 
 
-// ·¢0Âë
+// å‘0ç 
 void Set0Code(void)
 {
-    GPIOA_SetBits(GPIO_Pin_13); // ·¢ËÍÖ¡¸´Î»ĞÅºÅ
+    GPIOA_SetBits(GPIO_Pin_13); // å‘é€å¸§å¤ä½ä¿¡å·
     __nop();
     __nop();
-    GPIOA_ResetBits(GPIO_Pin_13); // ·¢ËÍÖ¡¸´Î»ĞÅºÅ
+    GPIOA_ResetBits(GPIO_Pin_13); // å‘é€å¸§å¤ä½ä¿¡å·
     //       NOP();
 }
-// ·¢1Âë
+// å‘1ç 
 void Set1Code(void)
 {
-    GPIOA_SetBits(GPIO_Pin_13); // ·¢ËÍÖ¡¸´Î»ĞÅºÅ
+    GPIOA_SetBits(GPIO_Pin_13); // å‘é€å¸§å¤ä½ä¿¡å·
     __nop();
     __nop();
     __nop();
@@ -22,9 +22,9 @@ void Set1Code(void)
     __nop();
     __nop();
     __nop();
-    GPIOA_ResetBits(GPIO_Pin_13); // ·¢ËÍÖ¡¸´Î»ĞÅºÅ
+    GPIOA_ResetBits(GPIO_Pin_13); // å‘é€å¸§å¤ä½ä¿¡å·
 }
-// ·¢Ò»¸öÏñËØ
+// å‘ä¸€ä¸ªåƒç´ 
 void SendOnePix(unsigned char buf[])
 {
     unsigned char i, j;
@@ -33,14 +33,14 @@ void SendOnePix(unsigned char buf[])
     for (j = 0; j < 3; j++) {
         temp = buf[j];
         for (i = 0; i < 8; i++) {
-            if (temp & 0x80)        //´Ó¸ßÎ»¿ªÊ¼·¢ËÍ
+            if (temp & 0x80)        //ä»é«˜ä½å¼€å§‹å‘é€
                     {
                 Set1Code();
-            } else                //·¢ËÍ¡°0¡±Âë
+            } else                //å‘é€â€œ0â€ç 
             {
                 Set0Code();
             }
-            temp = (temp << 1);      //×óÒÆÎ»
+            temp = (temp << 1);      //å·¦ç§»ä½
         }
     }
 }

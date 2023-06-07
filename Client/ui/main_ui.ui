@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>640</width>
-    <height>480</height>
+    <width>842</width>
+    <height>582</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>640</width>
-     <height>26</height>
+     <width>842</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_video_menu">
@@ -34,9 +34,11 @@
     <addaction name="actionReload_MCU"/>
     <addaction name="actionReload_Key_Mouse"/>
     <addaction name="separator"/>
+    <addaction name="actionDark_theme"/>
+    <addaction name="actionRGB"/>
+    <addaction name="separator"/>
     <addaction name="actionMinimize"/>
     <addaction name="actionexit"/>
-    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="menuKeyboard">
     <property name="title">
@@ -46,21 +48,13 @@
      <property name="title">
       <string>Shortcut key</string>
      </property>
-     <addaction name="actionq1"/>
-     <addaction name="actionq2"/>
-     <addaction name="actionq3"/>
-     <addaction name="actionq4"/>
-     <addaction name="actionq5"/>
-     <addaction name="actionq6"/>
-     <addaction name="actionq7"/>
-     <addaction name="actionq_8"/>
-     <addaction name="actionq9"/>
-     <addaction name="actionq10"/>
     </widget>
     <addaction name="actionResetKeyboard"/>
     <addaction name="separator"/>
     <addaction name="menuShortcut_key"/>
     <addaction name="actionCustomKey"/>
+    <addaction name="separator"/>
+    <addaction name="actionPaste_board"/>
     <addaction name="separator"/>
     <addaction name="actionIndicator_light"/>
    </widget>
@@ -72,6 +66,8 @@
     <addaction name="separator"/>
     <addaction name="actionCapture_mouse"/>
     <addaction name="actionRelease_mouse"/>
+    <addaction name="separator"/>
+    <addaction name="actionHide_cursor"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -88,6 +84,10 @@
     </property>
     <addaction name="action_fullscreen"/>
     <addaction name="action_Resize_window"/>
+    <addaction name="actionKeep_on_top"/>
+    <addaction name="separator"/>
+    <addaction name="actionKeep_ratio"/>
+    <addaction name="actionCapture_frame"/>
    </widget>
    <addaction name="menu_video_menu"/>
    <addaction name="menuVideo"/>
@@ -290,6 +290,56 @@
   <action name="action_Resize_window">
    <property name="text">
     <string>Resize window</string>
+   </property>
+  </action>
+  <action name="actionKeep_ratio">
+   <property name="text">
+    <string>Keep aspect ratio</string>
+   </property>
+  </action>
+  <action name="actionKeep_on_top">
+   <property name="text">
+    <string>Always on top</string>
+   </property>
+  </action>
+  <action name="actionPaste_board">
+   <property name="text">
+    <string>Paste board</string>
+   </property>
+  </action>
+  <action name="actionHide_cursor">
+   <property name="text">
+    <string>Hide cursor</string>
+   </property>
+  </action>
+  <action name="actionCaps_Lock">
+   <property name="text">
+    <string>Caps Lock</string>
+   </property>
+  </action>
+  <action name="actionScroll_Lock">
+   <property name="text">
+    <string>Scroll Lock</string>
+   </property>
+  </action>
+  <action name="actionNum_Lock">
+   <property name="text">
+    <string>Num Lock</string>
+   </property>
+  </action>
+  <action name="actionDark_theme">
+   <property name="text">
+    <string>Dark theme</string>
+   </property>
+  </action>
+  <action name="actionCapture_frame">
+   <property name="text">
+    <string>Capture frame</string>
+   </property>
+  </action>
+  <action name="actionRGB">
+   <property name="text">
+    <string>RGB Led</string>
    </property>
   </action>
  </widget>
