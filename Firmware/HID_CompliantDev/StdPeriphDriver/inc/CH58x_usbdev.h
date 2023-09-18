@@ -6,7 +6,7 @@
  * Description
  *********************************************************************************
  * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
- * Attention: This software (modified or not) and binary are used for 
+ * Attention: This software (modified or not) and binary are used for
  * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
 
@@ -17,14 +17,14 @@
 extern "C" {
 #endif
 
-/* HIDÀàÇëÇó */
+/* HIDï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 #define DEF_USB_GET_IDLE           0x02                                         /* get idle for key or mouse */
 #define DEF_USB_GET_PROTOCOL       0x03                                         /* get protocol for bios type */
 #define DEF_USB_SET_REPORT         0x09                                         /* set report for key */
 #define DEF_USB_SET_IDLE           0x0A                                         /* set idle for key or mouse */
 #define DEF_USB_SET_PROTOCOL       0x0B                                         /* set protocol for bios type */
 
-/* ÒÔÏÂ»º´æÇøÊÇUSBÄ£¿éÊÕ·¢Ê¹ÓÃµÄÊý¾Ý»º³åÇø£¬×Ü¹²9¸öÍ¨µÀ£¨9¿é»º´æ£©£¬ÓÃ»§¿É¸ù¾ÝÊµ¼ÊÊ¹ÓÃµÄÍ¨µÀÊý¶¨ÒåÏàÓ¦»º´æÇø */
+/* ï¿½ï¿½ï¿½Â»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½USBÄ£ï¿½ï¿½ï¿½Õ·ï¿½Ê¹ï¿½Ãµï¿½ï¿½ï¿½ï¿½Ý»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü¹ï¿½9ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½9ï¿½é»ºï¿½æ£©ï¿½ï¿½ï¿½Ã»ï¿½ï¿½É¸ï¿½ï¿½ï¿½Êµï¿½ï¿½Ê¹ï¿½Ãµï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 extern uint8_t *pEP0_RAM_Addr; //ep0(64)+ep4_out(64)+ep4_in(64)
 extern uint8_t *pEP1_RAM_Addr; //ep1_out(64)+ep1_in(64)
 extern uint8_t *pEP2_RAM_Addr; //ep2_out(64)+ep2_in(64)
@@ -34,6 +34,9 @@ extern uint8_t *pU2EP0_RAM_Addr; //ep0(64)+ep4_out(64)+ep4_in(64)
 extern uint8_t *pU2EP1_RAM_Addr; //ep1_out(64)+ep1_in(64)
 extern uint8_t *pU2EP2_RAM_Addr; //ep2_out(64)+ep2_in(64)
 extern uint8_t *pU2EP3_RAM_Addr; //ep3_out(64)+ep3_in(64)
+
+extern uint8_t           U2EP1_BUSY;
+extern uint8_t           U2EP2_BUSY;
 
 #define pSetupReqPak          ((PUSB_SETUP_REQ)pEP0_RAM_Addr)
 #define pEP0_DataBuf          (pEP0_RAM_Addr)
@@ -58,117 +61,117 @@ extern uint8_t *pU2EP3_RAM_Addr; //ep3_out(64)+ep3_in(64)
 #define pU2EP4_IN_DataBuf     (pU2EP0_RAM_Addr + 128)
 
 /**
- * @brief   USBÉè±¸¹¦ÄÜ³õÊ¼»¯£¬4¸ö¶Ëµã£¬8¸öÍ¨µÀ¡£
+ * @brief   USBï¿½è±¸ï¿½ï¿½ï¿½Ü³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½4ï¿½ï¿½ï¿½Ëµã£¬8ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½
  */
 void USB_DeviceInit(void);
 
 /**
- * @brief   USBÉè±¸Ó¦´ð´«Êä´¦Àí
+ * @brief   USBï¿½è±¸Ó¦ï¿½ï¿½ï¿½ä´¦ï¿½ï¿½
  */
 void USB_DevTransProcess(void);
 
 /**
- * @brief   ¶Ëµã1ÏÂ´«Êý¾Ý´¦Àí
+ * @brief   ï¿½Ëµï¿½1ï¿½Â´ï¿½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½
  *
- * @param   l   - ´ý´¦ÀíÊý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP1_OUT_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã2ÏÂ´«Êý¾Ý´¦Àí
+ * @brief   ï¿½Ëµï¿½2ï¿½Â´ï¿½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½
  *
- * @param   l   - ´ý´¦ÀíÊý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP2_OUT_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã3ÏÂ´«Êý¾Ý´¦Àí
+ * @brief   ï¿½Ëµï¿½3ï¿½Â´ï¿½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½
  *
- * @param   l   - ´ý´¦ÀíÊý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP3_OUT_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã4ÏÂ´«Êý¾Ý´¦Àí
+ * @brief   ï¿½Ëµï¿½4ï¿½Â´ï¿½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½
  *
- * @param   l   - ´ý´¦ÀíÊý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP4_OUT_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã1Êý¾ÝÉÏ´«
+ * @brief   ï¿½Ëµï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½
  *
- * @param   l   - ÉÏ´«Êý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½Ï´ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP1_IN_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã2Êý¾ÝÉÏ´«
+ * @brief   ï¿½Ëµï¿½2ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½
  *
- * @param   l   - ÉÏ´«Êý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½Ï´ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP2_IN_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã3Êý¾ÝÉÏ´«
+ * @brief   ï¿½Ëµï¿½3ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½
  *
- * @param   l   - ÉÏ´«Êý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½Ï´ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP3_IN_Deal(uint8_t l);
 
 /**
- * @brief   ¶Ëµã4Êý¾ÝÉÏ´«
+ * @brief   ï¿½Ëµï¿½4ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½
  *
- * @param   l   - ÉÏ´«Êý¾Ý³¤¶È(<64B)
+ * @param   l   - ï¿½Ï´ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½(<64B)
  */
 void DevEP4_IN_Deal(uint8_t l);
 
 /**
- * @brief   ²éÑ¯¶Ëµã1ÊÇ·ñÉÏ´«Íê³É
+ * @brief   ï¿½ï¿½Ñ¯ï¿½Ëµï¿½1ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½
  *
- * @return  0-Î´Íê³É  (!0)-ÒÑÍê³É
+ * @return  0-Î´ï¿½ï¿½ï¿½  (!0)-ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 #define EP1_GetINSta()    (R8_UEP1_CTRL & UEP_T_RES_NAK)
 
 /**
- * @brief   ²éÑ¯¶Ëµã2ÊÇ·ñÉÏ´«Íê³É
+ * @brief   ï¿½ï¿½Ñ¯ï¿½Ëµï¿½2ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½
  *
- * @return  0-Î´Íê³É  (!0)-ÒÑÍê³É
+ * @return  0-Î´ï¿½ï¿½ï¿½  (!0)-ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 #define EP2_GetINSta()    (R8_UEP2_CTRL & UEP_T_RES_NAK)
 
 /**
- * @brief   ²éÑ¯¶Ëµã3ÊÇ·ñÉÏ´«Íê³É
+ * @brief   ï¿½ï¿½Ñ¯ï¿½Ëµï¿½3ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½
  *
- * @return  0-Î´Íê³É  (!0)-ÒÑÍê³É
+ * @return  0-Î´ï¿½ï¿½ï¿½  (!0)-ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 #define EP3_GetINSta()    (R8_UEP3_CTRL & UEP_T_RES_NAK)
 
 /**
- * @brief   ²éÑ¯¶Ëµã4ÊÇ·ñÉÏ´«Íê³É
+ * @brief   ï¿½ï¿½Ñ¯ï¿½Ëµï¿½4ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½
  *
- * @return  0-Î´Íê³É  (!0)-ÒÑÍê³É
+ * @return  0-Î´ï¿½ï¿½ï¿½  (!0)-ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 #define EP4_GetINSta()    (R8_UEP4_CTRL & UEP_T_RES_NAK)
 
-void USB2_DeviceInit(void);      /* USB2Éè±¸¹¦ÄÜ³õÊ¼»¯£¬4¸ö¶Ëµã£¬8¸öÍ¨µÀ */
-void USB2_DevTransProcess(void); /* USB2Éè±¸Ó¦´ð´«Êä´¦Àí */
+void USB2_DeviceInit(void);      /* USB2ï¿½è±¸ï¿½ï¿½ï¿½Ü³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½4ï¿½ï¿½ï¿½Ëµã£¬8ï¿½ï¿½Í¨ï¿½ï¿½ */
+void USB2_DevTransProcess(void); /* USB2ï¿½è±¸Ó¦ï¿½ï¿½ï¿½ä´¦ï¿½ï¿½ */
 
-void U2DevEP1_OUT_Deal(uint8_t l); /* Éè±¸¶Ëµã1ÏÂ´«Í¨µÀ´¦Àí */
-void U2DevEP2_OUT_Deal(uint8_t l); /* Éè±¸¶Ëµã2ÏÂ´«Í¨µÀ´¦Àí */
-void U2DevEP3_OUT_Deal(uint8_t l); /* Éè±¸¶Ëµã3ÏÂ´«Í¨µÀ´¦Àí */
-void U2DevEP4_OUT_Deal(uint8_t l); /* Éè±¸¶Ëµã4ÏÂ´«Í¨µÀ´¦Àí */
+void U2DevEP1_OUT_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½1ï¿½Â´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+void U2DevEP2_OUT_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½2ï¿½Â´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+void U2DevEP3_OUT_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½3ï¿½Â´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+void U2DevEP4_OUT_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½4ï¿½Â´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 
-void U2DevEP1_IN_Deal(uint8_t l); /* Éè±¸¶Ëµã1ÉÏ´«Í¨µÀ´¦Àí */
-void U2DevEP2_IN_Deal(uint8_t l); /* Éè±¸¶Ëµã2ÉÏ´«Í¨µÀ´¦Àí */
-void U2DevEP3_IN_Deal(uint8_t l); /* Éè±¸¶Ëµã3ÉÏ´«Í¨µÀ´¦Àí */
-void U2DevEP4_IN_Deal(uint8_t l); /* Éè±¸¶Ëµã4ÉÏ´«Í¨µÀ´¦Àí */
+void U2DevEP1_IN_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½1ï¿½Ï´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+void U2DevEP2_IN_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½2ï¿½Ï´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+void U2DevEP3_IN_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½3ï¿½Ï´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+void U2DevEP4_IN_Deal(uint8_t l); /* ï¿½è±¸ï¿½Ëµï¿½4ï¿½Ï´ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 
-// 0-Î´Íê³É  (!0)-ÒÑÍê³É
-#define U2EP1_GetINSta()    (R8_U2EP1_CTRL & UEP_T_RES_NAK) /* ²éÑ¯¶Ëµã1ÊÇ·ñÉÏ´«Íê³É */
-#define U2EP2_GetINSta()    (R8_U2EP2_CTRL & UEP_T_RES_NAK) /* ²éÑ¯¶Ëµã2ÊÇ·ñÉÏ´«Íê³É */
-#define U2EP3_GetINSta()    (R8_U2EP3_CTRL & UEP_T_RES_NAK) /* ²éÑ¯¶Ëµã3ÊÇ·ñÉÏ´«Íê³É */
-#define U2EP4_GetINSta()    (R8_U2EP4_CTRL & UEP_T_RES_NAK) /* ²éÑ¯¶Ëµã4ÊÇ·ñÉÏ´«Íê³É */
+// 0-Î´ï¿½ï¿½ï¿½  (!0)-ï¿½ï¿½ï¿½ï¿½ï¿½
+#define U2EP1_GetINSta()    (R8_U2EP1_CTRL & UEP_T_RES_NAK) /* ï¿½ï¿½Ñ¯ï¿½Ëµï¿½1ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½ */
+#define U2EP2_GetINSta()    (R8_U2EP2_CTRL & UEP_T_RES_NAK) /* ï¿½ï¿½Ñ¯ï¿½Ëµï¿½2ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½ */
+#define U2EP3_GetINSta()    (R8_U2EP3_CTRL & UEP_T_RES_NAK) /* ï¿½ï¿½Ñ¯ï¿½Ëµï¿½3ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½ */
+#define U2EP4_GetINSta()    (R8_U2EP4_CTRL & UEP_T_RES_NAK) /* ï¿½ï¿½Ñ¯ï¿½Ëµï¿½4ï¿½Ç·ï¿½ï¿½Ï´ï¿½ï¿½ï¿½ï¿½ */
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,14 @@
+{
+  "app_title": "Open IP-KVM",
+  "listen_port": 5000,
+  "video": {
+    "device": "/dev/video0",
+    "res": "1920x1080",
+    "fps": 60,
+    "format": "auto",
+    "stream_port": 10120,
+    "backend": "none",
+    "custom_cmd": "python cv2_streamer.py -r $res -f $fps -p $stream_port",
+    "sudo": false
+  }
+}

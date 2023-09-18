@@ -163,7 +163,7 @@ const uint8_t U2MyCfgDescr[] = {
     // 0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, 0x34, 0x00, // HID类描述符
     0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, sizeof(U2MouseRepDesc) & 0xFF,
     sizeof(U2MouseRepDesc) >> 8,              // HID类描述符
-    0x07, 0x05, 0x82, 0x03, 0x06, 0x00, 0x0a  // 端点描述符
+    0x07, 0x05, 0x82, 0x03, 0x06, 0x00, 0x01  // 端点描述符 // 0x0a
 
 };
 /* USB速度匹配描述符 */
@@ -775,6 +775,7 @@ void USB2_DevTransProcess(void) {
         case UIS_TOKEN_IN | 1:
           R8_U2EP1_CTRL ^= RB_UEP_T_TOG;
           R8_U2EP1_CTRL = (R8_U2EP1_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
+          U2EP1_BUSY = 0;
           break;
 
         case UIS_TOKEN_OUT | 2: {
@@ -788,6 +789,7 @@ void USB2_DevTransProcess(void) {
         case UIS_TOKEN_IN | 2:
           R8_U2EP2_CTRL ^= RB_UEP_T_TOG;
           R8_U2EP2_CTRL = (R8_U2EP2_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
+          U2EP2_BUSY = 0;
           break;
 
         case UIS_TOKEN_OUT | 3: {
@@ -1232,7 +1234,13 @@ void U2DevWakeup(void) {
   R8_U2DEV_CTRL &= ~RB_UD_LOW_SPEED;
   R16_PIN_ANALOG_IE |= RB_PIN_USB2_DP_PU;
 }
-
+uint8_t __IO mode = 0;
+const uint8_t empty_buf[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t rgb_ready[3] = {0x00, 0x05, 0x00};
+const uint8_t rgb_off[3] = {0x00, 0x00, 0x00};
+const uint8_t rgb_r[3] = {0x20, 0x00, 0x00};
+const uint8_t rgb_g[3] = {0x00, 0x20, 0x00};
+const uint8_t rgb_b[3] = {0x00, 0x00, 0x20};
 /*********************************************************************
  * @fn      main
  *
@@ -1269,86 +1277,28 @@ int main() {
 #if DEBUG_PRT
   printf("RGB ON\n");
 #endif
-  uint8_t buf[3] = {0};
-  // GRB WS2812B
-  buf[0] = 0x00;
-  buf[1] = 0x05;
-  buf[2] = 0x00;
-  SendOnePix(buf);
+  SendOnePix(rgb_ready);
 
   mDelaymS(100);
 
   uint8_t i;
   while (1) {
-    __nop();
-  }
-#if 0
-  while (1) {
-    if (HIDOutDataTrigger == 1) {
-      switch (HIDOutData[0]) {
+    if (mode != 0) {
+      switch (mode) {
         case 1:
-#if DEBUG_PRT
-          printf("KEYBOARD : ");
-#endif
-          //   for (i = 0; i < 8; i++) {
-          //     U2HIDKey[i] = HIDOutData[i + 2];
-          //   }
-          //   U2DevHIDKeyReport();
-          memcpy(pU2EP1_IN_DataBuf, HIDOutData + 2, 8);
-          U2DevEP1_IN_Deal(8);
+          if (!U2EP1_BUSY) {
+            memcpy(pU2EP1_IN_DataBuf, empty_buf, 8);
+            U2DevEP1_IN_Deal(8);
+            mode = 0;
+          }
           break;
-        case 2:
-#if DEBUG_PRT
-          printf("MOUSE : ");
-#endif
-          //   for (i = 0; i < 6; i++) {
-          //     U2HIDMouse[i] = HIDOutData[i + 2];
-          //   }
-          //   U2DevHIDMouseReport();
-          memcpy(pU2EP2_IN_DataBuf, HIDOutData + 2, 6);
-          U2DevEP2_IN_Deal(6);
-          break;
-        case 3:
-#if DEBUG_PRT
-          printf("HIDKeyLightsCode: ");
-#endif
-          HID_Buf[0] = 3;
-          HID_Buf[2] = HIDKeyLightsCode;
-          //   DevHIDReport();
-          memcpy(pEP1_IN_DataBuf, HID_Buf, 10);
-          DevEP1_IN_Deal(10);
-          break;
-        case 4:
-#if DEBUG_PRT
-          printf("SYS_ResetExecute: ");
-#endif
-          SYS_ResetExecute();
-          break;
-        case 5:
-#if DEBUG_PRT
-          printf("SET WS2812B: ");
-#endif
-          // GRB
-          buf[0] = HIDOutData[2];
-          buf[1] = HIDOutData[3];
-          buf[2] = HIDOutData[4];
-          SendOnePix(buf);
+        default:
+          mode = 0;
           break;
       }
-#if DEBUG_PRT
-      for (i = 0; i < sizeof(HIDOutData); i++) {
-        printf(" %X |", HIDOutData[i], i);  // 遍历OUT数据
-      }
-      printf("\r\n");
-#endif
-      HIDOutDataTrigger = 0;
     }
-    // mDelayuS(1);
-    __nop();
   }
-#endif
 }
-
 /*********************************************************************
  * @fn      DevEP1_OUT_Deal
  *
@@ -1357,20 +1307,6 @@ int main() {
  * @return  none
  */
 void DevEP1_OUT_Deal(uint8_t l) { /* 用户可自定义 */
-  // uint8_t i;
-
-  // for (i = 0; i < l; i++)
-  // {
-  //     pEP1_IN_DataBuf[i] = ~pEP1_OUT_DataBuf[i];
-  // }
-  // DevEP1_IN_Deal(l);
-
-  // uint8_t i;
-
-  // for (i = 0; i < l; i++) {
-  //   HIDOutData[i] = pEP1_OUT_DataBuf[i];
-  // }
-  // HIDOutDataTrigger = 1;
   switch (pEP1_OUT_DataBuf[0]) {
     case 1:
       memcpy(pU2EP1_IN_DataBuf, pEP1_OUT_DataBuf + 2, 8);
@@ -1391,6 +1327,11 @@ void DevEP1_OUT_Deal(uint8_t l) { /* 用户可自定义 */
       break;
     case 5:
       SendOnePix(pEP1_OUT_DataBuf + 2);
+      break;
+    case 6:
+      memcpy(pU2EP1_IN_DataBuf, pEP1_OUT_DataBuf + 2, 8);
+      U2DevEP1_IN_Deal(8);
+      mode = 1;
       break;
   }
 }

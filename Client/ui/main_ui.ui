@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Simple USB KVM</string>
+   <string>USB KVM Client</string>
   </property>
   <widget class="QWidget" name="centralwidget"/>
   <widget class="QMenuBar" name="menubar">
@@ -55,8 +55,10 @@
     <addaction name="actionCustomKey"/>
     <addaction name="separator"/>
     <addaction name="actionPaste_board"/>
+    <addaction name="actionQuick_paste"/>
     <addaction name="separator"/>
     <addaction name="actionIndicator_light"/>
+    <addaction name="actionNum_Keyboard"/>
    </widget>
    <widget class="QMenu" name="menuMouse">
     <property name="title">
@@ -73,6 +75,8 @@
     <property name="title">
      <string>Tools</string>
     </property>
+    <addaction name="actionWindows_Device_Manager"/>
+    <addaction name="actionWindows_Audio_Setting"/>
     <addaction name="actionOn_screen_Keyboard"/>
     <addaction name="actionCalculator"/>
     <addaction name="actionSnippingTool"/>
@@ -340,6 +344,26 @@
   <action name="actionRGB">
    <property name="text">
     <string>RGB Led</string>
+   </property>
+  </action>
+  <action name="actionQuick_paste">
+   <property name="text">
+    <string>Quick paste</string>
+   </property>
+  </action>
+  <action name="actionWindows_Audio_Setting">
+   <property name="text">
+    <string>Windows Audio Settings</string>
+   </property>
+  </action>
+  <action name="actionWindows_Device_Manager">
+   <property name="text">
+    <string>Windows Device Manager</string>
+   </property>
+  </action>
+  <action name="actionNum_Keyboard">
+   <property name="text">
+    <string>Num Keyboard</string>
    </property>
   </action>
  </widget>

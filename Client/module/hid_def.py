@@ -7,11 +7,20 @@ vendor_id = 0x413D
 usage_page = 0xFF00
 
 DEBUG = False
+VERBOSE = False
 
 
 def set_debug(debug):
     global DEBUG
     DEBUG = debug
+
+
+def set_verbose(verbose):
+    global VERBOSE
+    VERBOSE = verbose
+
+
+h = hid.device()
 
 
 # 初始化HID设备
@@ -21,6 +30,7 @@ def init_usb(vendor_id, usage_page):
         return 0
     global h
     h = hid.device()
+    # h.close()
     hid_enumerate = hid.enumerate()
     device_path = 0
     for i in range(len(hid_enumerate)):
@@ -40,6 +50,15 @@ def init_usb(vendor_id, usage_page):
     return 0
 
 
+def check_connection() -> bool:
+    try:
+        h.read(1)
+        return True
+    except Exception:
+        return False
+    return False
+
+
 # 读写HID设备
 def hid_report(buffer=[], r_mode=False, report=0):
     if DEBUG:
@@ -47,7 +66,8 @@ def hid_report(buffer=[], r_mode=False, report=0):
         return 0
     buffer = buffer[-1:] + buffer[:-1]
     buffer[0] = 0
-    print("<", buffer)
+    if VERBOSE:
+        print("hid <", buffer)
     try:
         h.write(buffer)
     except (OSError, ValueError):
@@ -65,7 +85,8 @@ def hid_report(buffer=[], r_mode=False, report=0):
                 print("Error reading data from device")
                 return 2
             if d:
-                # print(">", d)
+                if VERBOSE:
+                    print("hid >", d)
                 break
             if time.time() - time_start > 2:
                 print("Device response timeout")

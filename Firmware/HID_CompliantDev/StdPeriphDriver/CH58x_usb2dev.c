@@ -6,7 +6,7 @@
  * Description
  *********************************************************************************
  * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
- * Attention: This software (modified or not) and binary are used for 
+ * Attention: This software (modified or not) and binary are used for
  * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
 
@@ -16,7 +16,8 @@ uint8_t *pU2EP0_RAM_Addr;
 uint8_t *pU2EP1_RAM_Addr;
 uint8_t *pU2EP2_RAM_Addr;
 uint8_t *pU2EP3_RAM_Addr;
-
+uint8_t U2EP1_BUSY;
+uint8_t U2EP2_BUSY;
 /*********************************************************************
  * @fn      USB2_DeviceInit
  *
@@ -65,6 +66,7 @@ void U2DevEP1_IN_Deal(uint8_t l)
 {
     R8_U2EP1_T_LEN = l;
     R8_U2EP1_CTRL = (R8_U2EP1_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_ACK;
+    U2EP1_BUSY = 1;
 }
 
 /*********************************************************************
@@ -80,6 +82,7 @@ void U2DevEP2_IN_Deal(uint8_t l)
 {
     R8_U2EP2_T_LEN = l;
     R8_U2EP2_CTRL = (R8_U2EP2_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_ACK;
+    U2EP2_BUSY = 1;
 }
 
 /*********************************************************************

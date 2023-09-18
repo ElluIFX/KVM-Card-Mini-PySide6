@@ -3,21 +3,21 @@ camera_config:
   device_No: 0
   device_name:
   - USB Video
+  - USB3 Video
   - OBS-Camera
-  - OBS Virtual Camera
   format: YUYV
   keep_aspect_ratio: true
-  resolution_X: 1920
-  resolution_Y: 1080
+  resolution_X: 1280
+  resolution_Y: 720
 config:
   dark_theme: true
   debug: false
+  fullscreen_alert_showed: true
   fullscreen_key: F11
 paste_board:
-  click_interval: 8
+  click_interval: 15
   packet_size: 2032
   packet_wait: 50
-  press_interval: 8
 shortcut_key:
   shortcut_key_hidcode:
   - - 1
