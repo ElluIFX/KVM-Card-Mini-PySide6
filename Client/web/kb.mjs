@@ -118,7 +118,7 @@ export function sendEvent(channel, key, type) {
   }
 
   const msg = {
-    type: 'write_keyboard',
+    type: 'keyboard',
     payload,
   };
   channel.send(JSON.stringify(msg));
@@ -134,26 +134,32 @@ function sleep(ms = 100) {
 export async function sendSequence(channel, str) {
   // replace \r\n with \n
   str = str.replace(/\r\n/g, '\n');
+  var isShift = false;
+  var shifted = false;
   for (let i = 0; i < str.length; i += 1) {
-    var isShift = false;
     if (str[i] === str[i].toUpperCase() && str[i] !== str[i].toLowerCase()) {
       isShift = true;
     }
-    if (ShiftSymbols.indexOf(str[i]) !== -1) {
+    else if (ShiftSymbols.indexOf(str[i]) !== -1) {
       isShift = true;
+    } else {
+      isShift = false;
     }
-    if (isShift) {
+
+    if (isShift && !shifted) {
       sendEvent(channel, 'Shift', 'keydown');
-      await sleep(10);
-    }
-    sendEvent(channel, str[i], 'keydown');
-    await sleep(15);
-    sendEvent(channel, str[i], 'keyup');
-    if (isShift) {
-      await sleep(10);
+      await sleep(5);
+      shifted = true;
+    } else if (!isShift && shifted) {
       sendEvent(channel, 'Shift', 'keyup');
+      await sleep(5);
+      shifted = false;
     }
-    await sleep(15);
+
+    sendEvent(channel, str[i], 'keydown');
+    await sleep(5);
+    sendEvent(channel, str[i], 'keyup');
+    await sleep(5);
   }
 
 }

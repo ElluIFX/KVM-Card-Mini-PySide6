@@ -1,0 +1,12 @@
+Found video devices: [(0, 'USB Video'), (1, 'OBS-Camera'), (2, 'OBS Virtual Camera')]
+Opend camera-0: 1280x720@60fps
+127.0.0.1 - - [19/Sep/2023 13:58:42] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /style.css HTTP/1.1" 304 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /app.mjs HTTP/1.1" 304 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /ws.mjs HTTP/1.1" 304 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /kb.mjs HTTP/1.1" 304 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /mouse.mjs HTTP/1.1" 304 -
+Get config: {'web_title': 'KVM Web Control Interface', 'port': 5000, 'video': {'width': 1280, 'height': 720, 'fps': 60, 'quality': 60, 'device': 'USB Video'}}
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /config HTTP/1.1" 200 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /snapshot HTTP/1.1" 200 -
+127.0.0.1 - - [19/Sep/2023 13:58:43] "GET /stream HTTP/1.1" 200 -

@@ -39,9 +39,9 @@ body, html {
   display: flex;
   font-size: 12px;
   text-align: center;
-  min-width: 100px;
+  min-width: 240px;
   position: fixed;
-  left: calc(50vw - 100px);
+  left: calc(50vw - 120px);
   top: 12px;
 
   padding: 4px 8px;

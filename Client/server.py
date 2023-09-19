@@ -1,6 +1,9 @@
+import inspect
 import json
 import logging
 import os
+import re
+import secrets
 import threading as th
 import time
 
@@ -17,71 +20,142 @@ from flask import (
     url_for,
 )
 from flask_cors import CORS
+from flask_httpauth import HTTPBasicAuth
 from flask_sock import Sock
+from loguru import logger
 from PyCameraList.camera_device import list_video_devices
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.serving import make_server
 
 path = os.path.dirname(os.path.abspath(__file__))
 
+
+class InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        # Get corresponding Loguru level if it exists.
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        # Find caller from where originated the logged message.
+        frame, depth = inspect.currentframe(), 0
+        while frame and (depth == 0 or frame.f_code.co_filename == logging.__file__):
+            frame = frame.f_back
+            depth += 1
+        message = record.getMessage()
+        # remove timestamp like [19/Sep/2023 14:08:16]
+        message = re.sub(r"\[\d+/\w+/\d{4} \d{2}:\d{2}:\d{2}\] ", "", message)
+        # remove terminal color code
+        message = re.sub(r"\x1b\[\d+m", "", message)
+        message = re.sub(r"\x1b\[\d+;\d+m", "", message)
+        logger.opt(depth=depth, exception=record.exc_info).log(level, message)
+
+
+logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+
 kvm_default_config = {
     "web_title": "KVM Web Control Interface",
-    "port": 5000,
     "video": {
         "width": 1280,
         "height": 720,
         "fps": 60,
-        "quality": 80,
-        "device": "USB Video",
+        "quality": 60,
     },
 }
 
-app = Flask(__name__)
+
+app = Flask(__name__, static_folder=os.path.join(path, "web"), static_url_path="")
 sock = Sock(app)
+cors = CORS(app, supports_credentials=True, allow_headers="*")
+auth = HTTPBasicAuth()
+
 app.template_folder = os.path.join(path, "web")
-CORS(app, supports_credentials=True, allow_headers="*")
+
+auth_users = {}
+auth_secrets = {None: False}
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+def generate_secret():
+    global auth_secrets
+    secret = secrets.token_hex(16)
+    while secret in auth_secrets:
+        secret = secrets.token_hex(16)
+    auth_secrets[secret] = False
+    return secret
 
 
-@app.route("/<path:path>")
-def public_file(path):
-    return send_from_directory("web", path)
+def add_auth_user(username, password):
+    global auth_users
+    auth_users[username] = generate_password_hash(password)
+
+def count_auth_users():
+    global auth_users
+    return len(auth_users)
+
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in auth_users and check_password_hash(auth_users[username], password):
+        return username
+
+
+def get_browser_uuid():
+    data = request.headers.get("User-Agent", "Unknown")
+    return hash(data)
+
+
+@app.route("/login")
+@auth.login_required
+def login():
+    args = request.args.copy()
+    red = args.pop("r", None)
+    _ = args.pop("s", None)
+    if red not in ["http_index", "http_stream", "http_snapshot", "http_info", "http_config"]:
+        return Response(f"Invalid redirect: {red}", status=401)
+    secret = generate_secret()
+    broswer_id = get_browser_uuid()
+    logger.info(f"Login: {auth.current_user()} - {secret} - {broswer_id}")
+    auth_secrets[secret] = broswer_id
+    return redirect(url_for(red, s=secret, **args))
+
+
+def check_auth_secret():
+    secret = request.args.get("s", None)
+    if secret is None:
+        return False
+    if secret not in auth_secrets:
+        return False
+    if auth_secrets[secret] == get_browser_uuid():
+        return True
+    auth_secrets.pop(secret)
+    logger.info(f"Logout: {secret}")
+    return False
 
 
 class KVM_Server(object):
-    instance = None
-    inited = False
-
-    def __new__(cls, *args, **kwargs):
-        if KVM_Server.instance is None:
-            KVM_Server.instance = object.__new__(cls)
-        return KVM_Server.instance
-
     def __init__(self, config=kvm_default_config) -> None:
-        if KVM_Server.inited:
-            return
         self.config = config
         self.running = False
-        self.log_disabled = False
         self.camera_opened = False
         self.command_callback = None
-        app.route("/api/config")(self.get_config)
+        self.auth_required = False
+
+        app.route("/")(self.http_index)
+        app.route("/<path:path>")(self.public_file)
         sock.route("/websocket")(self.websocket)
         app.route("/stream")(self.http_stream)
         app.route("/snapshot")(self.http_snapshot)
-        app.route("/info")(self.http_info)
         app.route("/config")(self.http_config)
 
-    def log(self, msg):
-        if not self.log_disabled:
-            print(msg)
+    def http_index(self):
+        if self.auth_required:
+            if not check_auth_secret():
+                return redirect(url_for("login", r="http_index"))
+        return render_template("index.html")
 
-    def get_config(self):
-        self.log(f"get_config: {self.config}")
-        return jsonify(self.config)
+    def public_file(self, path):
+        return send_from_directory("web", path)
 
     def websocket(self, sock):
         while True:
@@ -94,23 +168,18 @@ class KVM_Server(object):
                     if self.command_callback is not None:
                         self.command_callback(data_type, data_payload)
                     else:
-                        self.log(f"Command: {data_type} {data_payload}")
+                        logger.debug(f"Command: {data_type} {data_payload}")
                 except Exception as e:
-                    self.log(f"Error Command: {e}")
+                    logger.error(f"Error Command: {e}")
 
     def register_command_callback(self, callback):
         self.command_callback = callback
 
-    def disable_log(self):
-        log = logging.getLogger("werkzeug")
-        log.disabled = True
-        log.setLevel(logging.ERROR)
-        self.log_disabled = True
-
-    def open_camera(self):
-        device_name = self.config["video"]["device"]
+    def open_camera(self, device_name):
+        if self.camera_opened:
+            return True, ""
         devices = list_video_devices()
-        self.log(f"Found video devices: {devices}")
+        logger.info(f"Found video devices: {devices}")
         if len(devices) == 0:
             return False, "No video device found"
         for id, name in devices:
@@ -129,7 +198,7 @@ class KVM_Server(object):
         true_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         true_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         true_fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-        self.log(f"Opend camera-{video_device}: {true_width}x{true_height}@{true_fps}fps")
+        logger.info(f"Opend camera-{video_device}: {true_width}x{true_height}@{true_fps}fps")
         self.config["video"]["width"] = true_width
         self.config["video"]["height"] = true_height
         self.config["video"]["fps"] = true_fps
@@ -147,8 +216,6 @@ class KVM_Server(object):
             ret, frame = self.cap.read()
             if not ret:
                 continue
-            timestr = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            cv2.putText(frame, timestr, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
             self.image = frame
             self.image_event.set()
 
@@ -157,35 +224,41 @@ class KVM_Server(object):
             self.image_event.wait()
             self.image_event.clear()
             frame = self.image.copy()
-            data = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, self.config["video"]["quality"]])[1]
-            yield (b"Content-Type: data/jpeg\r\n\r\n" + data.tobytes() + b"\r\n\r\n--frame\r\n")
+            if self.config["video"]["quality"] == 100:
+                data = cv2.imencode(".png", frame)[1]
+                yield (b"Content-Type: data/png\r\n\r\n" + data.tobytes() + b"\r\n\r\n--frame\r\n")
+            else:
+                data = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, self.config["video"]["quality"]])[1]
+                yield (b"Content-Type: data/jpeg\r\n\r\n" + data.tobytes() + b"\r\n\r\n--frame\r\n")
 
     def get_snapshot(self):
         self.image_event.wait()
         self.image_event.clear()
         frame = self.image.copy()
-        data = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, self.config["video"]["quality"]])[1]
+        data = cv2.imencode(".png", frame)[1]
         return data.tobytes()
 
     def http_stream(self):
+        if self.auth_required:
+            if not check_auth_secret():
+                return redirect(url_for("login", r="http_stream"))
         return Response(self.get_stream(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
     def http_snapshot(self):
-        return Response(self.get_snapshot(), mimetype="image/jpeg")
-
-    def http_info(self):
-        return Response(
-            f'Device-{self.config["video"]["device"]}: {self.config["video"]["width"]}x{self.config["video"]["height"]}@{self.config["video"]["fps"]}fps',
-            mimetype="text/plain",
-            status=200,
-        )
+        if self.auth_required:
+            if not check_auth_secret():
+                return redirect(url_for("login", r="http_snapshot"))
+        return Response(self.get_snapshot(), mimetype="image/png")
 
     def http_config(self):
+        if self.auth_required:
+            if not check_auth_secret():
+                return redirect(url_for("login", r="http_config", **request.args))
         res = request.args.get("res", None)
         fps = request.args.get("fps", None)
         quality = request.args.get("quality", None)
         if not any([res, fps, quality]):
-            return Response("No config provided, available: res, fps, quality", status=400)
+            return jsonify(self.config)
         if res is not None:
             video_width = int(res.split("x")[0])
             video_height = int(res.split("x")[1])
@@ -204,27 +277,25 @@ class KVM_Server(object):
             video_quality = int(quality)
             video_quality = max(0, min(100, video_quality))
             self.config["video"]["quality"] = video_quality
-        text = f'New config: {self.config["video"]["width"]}x{self.config["video"]["height"]}@{self.config["video"]["fps"]}fps, quality={self.config["video"]["quality"]}'
-        self.log(text)
-        return Response(text, status=200)
+        logger.info(
+            f'New config set: {self.config["video"]["width"]}x{self.config["video"]["height"]}@{self.config["video"]["fps"]}fps, quality={self.config["video"]["quality"]}'
+        )
+        return jsonify(self.config)
 
-    def _run(self):
-        self.server.serve_forever()
-
-    def start_server(self):
+    def start_server(self, host, port, device):
         """
         Start the server non-blocking
         """
         assert not self.running, "Server already running"
         if not self.camera_opened:
-            ret, msg = self.open_camera()
+            ret, msg = self.open_camera(device)
             if not ret:
                 raise Exception(msg)
         self.running = True
         self.stream_thread = th.Thread(target=self.stream_worker, daemon=True)
         self.stream_thread.start()
-        self.server = make_server("0.0.0.0", self.config["port"], app, threaded=True, processes=1)
-        self.server_thread = th.Thread(target=self._run, daemon=True)
+        self.server = make_server(host, port, app, threaded=True, processes=1)
+        self.server_thread = th.Thread(target=self.server.serve_forever, daemon=True)
         self.server_thread.start()
 
     def stop_server(self):
@@ -241,13 +312,12 @@ class KVM_Server(object):
 
 if __name__ == "__main__":
     server = KVM_Server()
-    server.disable_log()
-    server.start_server()
+    add_auth_user("admin", "admin")
+    server.auth_required = False
+    server.start_server("0.0.0.0",5000, "USB Video")
     while True:
         try:
             time.sleep(1)
-            print("Server running")
         except KeyboardInterrupt:
+            server.stop_server()
             break
-    server.stop_server()
-    print("Server stopped")

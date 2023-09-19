@@ -6,37 +6,27 @@ import sys
 import time
 from typing import List, Tuple, Union
 
+import hid_def
 import yaml  # type: ignore
-from module import hid_def
-from PyQt5 import QtGui
-from PyQt5.QtCore import QEventLoop, QSize, Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import QCursor, QIcon, QImage, QPixmap
-from PyQt5.QtMultimedia import (
-    QCamera,
-    QCameraImageCapture,
-    QCameraInfo,
-    QCameraViewfinderSettings,
-    QImageEncoderSettings,
-    QMultimedia,
-    QVideoFrame,
+from loguru import logger
+from PySide6 import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtMultimedia import *
+from PySide6.QtMultimediaWidgets import *
+from PySide6.QtWidgets import *
+from server import KVM_Server, add_auth_user, count_auth_users
+from ui import (
+    device_setup_dialog_ui,
+    indicator_ui,
+    main_ui,
+    numboard_ui,
+    paste_board_ui,
+    shortcut_key_ui,
 )
-from PyQt5.QtMultimediaWidgets import QCameraViewfinder
-from PyQt5.QtWidgets import (
-    QApplication,
-    QDesktopWidget,
-    QDialogButtonBox,
-    QFileDialog,
-    QInputDialog,
-    QLabel,
-    QMainWindow,
-    QMessageBox,
-    QPushButton,
-)
-from PyQt5.uic import loadUi
-from ui import main_ui
 
 """
-qdarktheme import after pyqt5
+qdarktheme import after QT
 """
 import qdarktheme
 
@@ -49,9 +39,30 @@ shift_symbol = [
     "<",">","?",
 ]  # fmt: skip
 PATH = os.path.dirname(os.path.abspath(__file__))
-
+ARGV_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
 dark_theme = True
 
+
+class Fake_StdWriter:
+    def __init__(self, *args, **kwargs):
+        self.buffer = ""
+        self.callback = None
+
+    def write(self, data):
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        self.buffer += data
+        if self.callback is not None:
+            self.callback(self.buffer)
+
+    def flush(self):
+        pass
+
+    def clear(self):
+        self.buffer = ""
+
+
+fake_std = Fake_StdWriter()
 
 # 屏蔽所有print
 if sys.argv[-1] != "debug":
@@ -59,6 +70,14 @@ if sys.argv[-1] != "debug":
     def print(*args, **kwargs):
         pass
 
+    sys.stdout = fake_std
+    sys.stderr = fake_std
+
+    logger.remove()
+    logger.add(
+        fake_std,
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} - {level} - {name} - {message}",  #:{function}:{line}
+    )
 else:
     hid_def.set_verbose(True)
 
@@ -137,8 +156,50 @@ class MyPushButton(QPushButton):
         self.setIconSize(QSize(18, 18))
 
 
+class MyDeviceSetupDialog(QDialog, device_setup_dialog_ui.Ui_Dialog):
+    def __init__(self, parent=None):
+        super(MyDeviceSetupDialog, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+
+
+class MyShortcutKeyDialog(QDialog, shortcut_key_ui.Ui_Dialog):
+    def __init__(self, parent=None):
+        super(MyShortcutKeyDialog, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+
+
+class MyPasteBoardDialog(QDialog, paste_board_ui.Ui_Dialog):
+    def __init__(self, parent=None):
+        super(MyPasteBoardDialog, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+
+
+class MyIndicatorDialog(QDialog, indicator_ui.Ui_Dialog):
+    def __init__(self, parent=None):
+        super(MyIndicatorDialog, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+
+
+class MyNumKeyboardDialog(QDialog, numboard_ui.Ui_Dialog):
+    def __init__(self, parent=None):
+        super(MyNumKeyboardDialog, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setFixedWidth(self.width())
+
+
 class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
-    _disconnect_signal = pyqtSignal()
+    _disconnect_signal = Signal()
+    _log_signal = Signal(str)
 
     def __init__(self, parent=None):
         self.ignore_event = False
@@ -150,26 +211,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.device_connected = False
 
         # 子窗口
-        self.device_setup_dialog = loadUi(os.path.join(PATH, "ui", "device_setup_dialog.ui"))
-        self.device_setup_dialog.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
-        self.device_setup_dialog.setWindowFlags(self.device_setup_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
-
-        self.shortcut_key_dialog = loadUi(os.path.join(PATH, "ui", "shortcut_key.ui"))
-        self.shortcut_key_dialog.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
-        self.shortcut_key_dialog.setWindowFlags(self.shortcut_key_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
-
-        self.paste_board_dialog = loadUi(os.path.join(PATH, "ui", "paste_board.ui"))
-        self.paste_board_dialog.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
-        self.paste_board_dialog.setWindowFlags(self.paste_board_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
-
-        self.indicator_dialog = loadUi(os.path.join(PATH, "ui", "indicator.ui"))
-        self.indicator_dialog.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
-        self.indicator_dialog.setWindowFlags(self.indicator_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
-
-        self.numkeyboard_dialog = loadUi(os.path.join(PATH, "ui", "numboard.ui"))
-        self.numkeyboard_dialog.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
-        self.numkeyboard_dialog.setWindowFlags(self.numkeyboard_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
-        self.numkeyboard_dialog.setFixedWidth(self.numkeyboard_dialog.width())
+        self.device_setup_dialog = MyDeviceSetupDialog()
+        self.shortcut_key_dialog = MyShortcutKeyDialog()
+        self.paste_board_dialog = MyPasteBoardDialog()
+        self.indicator_dialog = MyIndicatorDialog()
+        self.numkeyboard_dialog = MyNumKeyboardDialog()
 
         self.shortcut_key_dialog.pushButtonSend.released.connect(lambda: self.shortcut_key_func(1))
         self.shortcut_key_dialog.pushButtonSend.pressed.connect(lambda: self.shortcut_key_func(2))
@@ -198,16 +244,17 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             )
         # 导入外部数据
         try:
-            with open("./data/keyboard_hid2code.yaml", "r") as load_f:
+            with open(os.path.join(ARGV_PATH, "data", "keyboard_hid2code.yaml"), "r") as load_f:
                 self.keyboard_hid2code = yaml.safe_load(load_f)
-            with open("./data/keyboard_scancode2hid.yml", "r") as load_f:
+            with open(os.path.join(ARGV_PATH, "data", "keyboard_scancode2hid.yml"), "r") as load_f:
                 self.keyboard_scancode2hid = yaml.safe_load(load_f)
-            with open("./data/keyboard.yaml", "r") as load_f:
+            with open(os.path.join(ARGV_PATH, "data", "keyboard.yaml"), "r") as load_f:
                 self.keyboard_code = yaml.safe_load(load_f)
-            with open("./data/config.yaml", "r") as load_f:
+            with open(os.path.join(ARGV_PATH, "data", "config.yaml"), "r") as load_f:
                 self.configfile = yaml.safe_load(load_f)
             self.camera_config = self.configfile["camera_config"]
             self.config = self.configfile["config"]
+            self.video_record_config = self.configfile["video_record_config"]
             if self.config["debug"]:
                 hid_def.set_debug(True)
             self.fullscreen_key = getattr(Qt, f'Key_{self.config["fullscreen_key"]}')
@@ -234,12 +281,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.set_font_bold(self.actionDark_theme, True)
 
         # 获取显示器分辨率大小
-        self.desktop = QApplication.desktop()
-        self.status["screen_height"] = self.desktop.screenGeometry().height()
-        self.status["screen_width"] = self.desktop.screenGeometry().width()
+        self.desktop = QGuiApplication.primaryScreen()
+        self.status["screen_height"] = self.desktop.availableGeometry().height()
+        self.status["screen_width"] = self.desktop.availableGeometry().width()
 
         # 窗口图标
-        self.setWindowIcon(QtGui.QIcon(f"{PATH}/ui/images/icon.ico"))
+        self.setWindowIcon(QIcon(f"{PATH}/ui/images/icon.ico"))
         self.device_setup_dialog.setWindowIcon(load_icon("import", False))
         self.shortcut_key_dialog.setWindowIcon(load_icon("keyboard-settings-outline", False))
         self.paste_board_dialog.setWindowIcon(load_icon("paste", False))
@@ -251,7 +298,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_lable2 = QLabel()
         self.statusbar_lable3 = QLabel()
         self.statusbar_lable4 = QLabel()
-        font = QtGui.QFont()
+        font = QFont()
         font.setFamily("Microsoft YaHei UI")
         font.setBold(True)
         self.statusbar_lable1.setFont(font)
@@ -331,20 +378,28 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionHide_cursor.setIcon(load_icon("cursor"))
         self.actionDark_theme.setIcon(load_icon("night"))
         self.actionCapture_frame.setIcon(load_icon("capture"))
+        self.actionRecord_video.setIcon(load_icon("record"))
         self.actionRGB.setIcon(load_icon("RGB"))
         self.actionQuick_paste.setIcon(load_icon("quick_paste"))
         self.actionWindows_Audio_Setting.setIcon(load_icon("audio"))
         self.actionWindows_Device_Manager.setIcon(load_icon("device"))
         self.actionNum_Keyboard.setIcon(load_icon("numkey"))
+        self.actionOpen_Server_Manager.setIcon(load_icon("server"))
 
         if self.camera_config["keep_aspect_ratio"]:
             self.set_font_bold(self.actionKeep_ratio, True)
         self.set_font_bold(self.actionQuick_paste, True)
 
         # 初始化监视器
-        self.camerafinder = QCameraViewfinder()
-        self.setCentralWidget(self.camerafinder)
-        self.camerafinder.hide()
+        self.setCentralWidget(self.serverFrame)
+        self.serverFrame.setHidden(True)
+
+        self.videoWidget = QVideoWidget()
+        self.takeCentralWidget()
+        self.setCentralWidget(self.videoWidget)
+        self.videoWidget.setMouseTracking(True)
+        self.videoWidget.children()[0].setMouseTracking(True)
+        self.videoWidget.hide()
 
         self.disconnect_label = QLabel()
         self.disconnect_label.setPixmap(load_pixmap("disconnected"))
@@ -375,6 +430,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionKeep_ratio.triggered.connect(self.keep_ratio_func)
         self.actionKeep_on_top.triggered.connect(self.topmost_func)
         self.actionCapture_frame.triggered.connect(self.capture_to_file)
+        self.actionRecord_video.triggered.connect(self.record_video)
 
         self.actionRelease_mouse.triggered.connect(self.release_mouse)
         self.actionCapture_mouse.triggered.connect(self.capture_mouse)
@@ -395,9 +451,13 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionWindows_Audio_Setting.triggered.connect(lambda: self.menu_tools_actions(4))
         self.actionWindows_Device_Manager.triggered.connect(lambda: self.menu_tools_actions(5))
 
+        self.actionOpen_Server_Manager.triggered.connect(self.open_server_manager)
+
         self.actionDark_theme.triggered.connect(self.dark_theme_func)
         self.actionRGB.triggered.connect(self.RGB_func)
         self.paste_board_dialog.pushButtonFile.clicked.connect(self.paste_board_file_select)
+
+        self.kvmSetDeviceCombo.currentTextChanged.connect(self.update_server_device_info)
 
         self.paste_board_dialog.spinBox_ci.setValue(self.configfile["paste_board"]["click_interval"])
         self.paste_board_dialog.spinBox_ps.setValue(self.configfile["paste_board"]["packet_size"])
@@ -426,21 +486,23 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.check_device_timer.start(1000)
         self._disconnect_signal.connect(lambda: self.check_device_status(camera=False))
 
-        # 初始化hid设备
         self.reset_keymouse(4)
-        # 创建指针对象
-        self.cursor = QCursor()
-        self.setMouseTracking(True)
-        # self.grabKeyboard()
+
+        # self.setMouseTracking(True)
 
         self.mouse_scroll_timer = QTimer()
         self.mouse_scroll_timer.timeout.connect(self.mouse_scroll_stop)
 
+        self._log_signal.connect(self.set_log_text)
+        fake_std.callback = self._log_signal.emit
+        self.server = KVM_Server()
+
         self.status["init_ok"] = True
 
+        self.camera_list_inited = False
         if self.camera_config["auto_connect"]:
             self.device_setup_dialog.checkBoxAutoConnect.setChecked(True)
-            QTimer().singleShot(1000, lambda: self.set_webcam(True))
+            QTimer().singleShot(1000, lambda: self.set_webcam(True, center=True))
 
     def statusbar_func(self, act):
         # print(f"action={act}")
@@ -482,33 +544,35 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def save_config(self):
         # 保存配置文件
-        with open("./data/config.yaml", "w", encoding="utf-8") as f:
+        with open(os.path.join(ARGV_PATH, "data", "config.yaml"), "w", encoding="utf-8") as f:
             yaml.dump(self.configfile, f)
 
     # 弹出采集卡设备设置窗口，并打开采集卡设备
     def device_config(self):
+        if self.serverFrame.isVisible():
+            QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
+            return False
+
         self.device_setup_dialog.comboBox.clear()
-
-        # 遍历相机设备
-        cameras = QCameraInfo()
-        remember_name = self.camera_config["device_name"][self.camera_config["device_No"]]
-        self.camera_config["device_name"] = []
-        for i in cameras.availableCameras():
-            self.camera_config["device_name"].append(i.description())
-            self.device_setup_dialog.comboBox.addItem(i.description())
-
-        # 将设备设置为字典camera_config中指定的设备
-        if remember_name in self.camera_config["device_name"]:
-            self.camera_config["device_No"] = self.camera_config["device_name"].index(remember_name)
-            self.device_setup_dialog.comboBox.setCurrentIndex(self.camera_config["device_No"])
+        cameras = QMediaDevices.videoInputs()
+        remember_name = self.camera_config["device_name"]
+        # self.camera_config["device_name"] = ""
+        devices = []
+        for camera in cameras:
+            self.device_setup_dialog.comboBox.addItem(camera.description())
+            devices.append(camera.description())
+        self.camera_list_inited = True
+        if remember_name in devices:
+            self.device_setup_dialog.comboBox.setCurrentText(remember_name)
+            self.update_device_setup_resolutions()
             resolution_str = str(self.camera_config["resolution_X"]) + "x" + str(self.camera_config["resolution_Y"])
             self.device_setup_dialog.comboBox_2.setCurrentText(resolution_str)
             self.device_setup_dialog.comboBox_3.setCurrentText(self.camera_config["format"])
         else:
             self.device_setup_dialog.comboBox.setCurrentIndex(0)
+            self.update_device_setup_resolutions()
             self.device_setup_dialog.comboBox_2.setCurrentIndex(0)
             self.device_setup_dialog.comboBox_3.setCurrentIndex(0)
-            self.camera_config["device_No"] = 0
             try:
                 self.camera_config["resolution_X"] = self.device_setup_dialog.comboBox_2.currentText().split("x")[0]
                 self.camera_config["resolution_Y"] = self.device_setup_dialog.comboBox_2.currentText().split("x")[1]
@@ -529,9 +593,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if info == 1:
             print(self.device_setup_dialog.comboBox.currentIndex())
             print(self.device_setup_dialog.comboBox_2.currentText().split("x"))
-
-            self.camera_config["device_No"] = self.device_setup_dialog.comboBox.currentIndex()
             try:
+                self.camera_config["device_name"] = self.device_setup_dialog.comboBox.currentText()
                 self.camera_config["resolution_X"] = int(
                     self.device_setup_dialog.comboBox_2.currentText().split("x")[0]
                 )
@@ -540,13 +603,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 )
                 self.camera_config["format"] = self.device_setup_dialog.comboBox_3.currentText()
             except:
-                self.alert("Selected invalid device")
+                self.video_alert("Selected invalid device")
                 return
             print(self.camera_config)
-
             try:
-                self.set_webcam(True)
-                self.resize_window_func()
+                self.set_webcam(True, center=True)
                 self.camera_config["auto_connect"] = self.device_setup_dialog.checkBoxAutoConnect.isChecked()
                 self.save_config()
             except Exception as e:
@@ -556,62 +617,113 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def update_device_setup_resolutions(self):
         self.device_setup_dialog.comboBox_2.clear()
         self.device_setup_dialog.comboBox_3.clear()
-        camera_info = QCamera(QCameraInfo.availableCameras()[self.device_setup_dialog.comboBox.currentIndex()])
-        camera_info.load()
-        for i in camera_info.supportedViewfinderResolutions():
-            resolutions_str = f"{i.width()}x{i.height()}"
-            self.device_setup_dialog.comboBox_2.addItem(resolutions_str)
-        formats = [self.get_format(i) for i in camera_info.supportedViewfinderPixelFormats()]
-        for i in formats:
-            self.device_setup_dialog.comboBox_3.addItem(i)
-        print(formats)
-        print(camera_info.supportedViewfinderResolutions())
-        camera_info.unload()
-
-    def get_format(self, fmt: QVideoFrame.PixelFormat):
-        for attr_name in dir(QVideoFrame):
-            if attr_name.startswith("Format_"):
-                if getattr(QVideoFrame, attr_name) == fmt:
-                    return attr_name.replace("Format_", "")
-        return "Unknown format"
+        cameras = QMediaDevices.videoInputs()
+        if not self.camera_list_inited:
+            for camera in cameras:
+                if camera.description() == self.camera_config["device_name"]:
+                    self.camera_info = camera
+                    break
+            else:
+                print("Target video device not found")
+                self.camera_info = None
+                return
+        else:
+            try:
+                self.camera_info = cameras[self.device_setup_dialog.comboBox.currentIndex()]
+            except IndexError:
+                self.camera_info = None
+                return
+        res_list = []
+        fmt_list = []
+        for i in self.camera_info.videoFormats():
+            resolutions_str = f"{i.resolution().width()}x{i.resolution().height()}"
+            if resolutions_str not in res_list:
+                res_list.append(resolutions_str)
+                self.device_setup_dialog.comboBox_2.addItem(resolutions_str)
+            fmt_str = i.pixelFormat().name.split("_")[1]
+            if fmt_str not in fmt_list:
+                fmt_list.append(fmt_str)
+                self.device_setup_dialog.comboBox_3.addItem(fmt_str)
 
     # 初始化指定配置视频设备
-    def get_webcam(self, i, x, y, f, resize=True):
-        self.camera = QCamera(QCameraInfo.availableCameras()[i])
-        self.camera.error.connect(lambda: self.alert(self.camera.errorString()))
-        self.camera.setViewfinder(self.camerafinder)
-        self.camera.setCaptureMode(QCamera.CaptureViewfinder)
-        # self.camera.setCaptureMode(QCamera.CaptureVideo)
-        # self.camera.setCaptureMode(QCamera.CaptureStillImage)
-        view_finder_settings = QCameraViewfinderSettings()
-        view_finder_settings.setResolution(x, y)
-        view_finder_settings.setPixelFormat(getattr(QVideoFrame, f"Format_{f}"))
-        self.camera.setViewfinderSettings(view_finder_settings)
+    def setup_device(self):
+        if self.serverFrame.isVisible():
+            QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
+            return False
+        if self.camera_info is None:
+            self.update_device_setup_resolutions()
+            if self.camera_info is None:
+                self.video_alert("Target video device not found")
+                return False
+        self.camera = QCamera(self.camera_info)
+        for i in self.camera_info.videoFormats():
+            if (
+                i.resolution().width() == self.camera_config["resolution_X"]
+                and i.resolution().height() == self.camera_config["resolution_Y"]
+                and i.pixelFormat().name.split("_")[1] == self.camera_config["format"]
+            ):
+                self.camera.setCameraFormat(i)
+                break
+        else:
+            self.video_alert("Unsupported combination of resolution and format")
+            return False
+        self.camera.start()
+        if not self.camera.isActive():
+            self.video_alert("Video device connect failed")
+            return False
 
-        self.capturer = QCameraImageCapture(self.camera)
-        settings = QImageEncoderSettings()  # 拍照设置
-        settings.setCodec("image/png")  # 设置抓图图形编码
-        settings.setResolution(x, y)  # 分辨率
-        settings.setQuality(QMultimedia.VeryHighQuality)  # 图片质量
-        self.capturer.setEncodingSettings(settings)
-        self.capturer.error.connect(lambda i, e, s: self.alert(s))
-        self.capturer.imageCaptured.connect(self.image_captured)
-        self.capturer.setCaptureDestination(QCameraImageCapture.CaptureToBuffer)
-        print(f"capturer available: {self.capturer.isAvailable()}")
-        if not self.status["fullscreen"] and resize:
-            self.resize_window_func()
-        # self.camera.start()
+        self.capture_session = QMediaCaptureSession()
+        self.capture_session.setCamera(self.camera)
+        self.capture_session.setVideoOutput(self.videoWidget)
+
+        self.image_capture = QImageCapture(self.camera)
+        self.capture_session.setImageCapture(self.image_capture)
+        self.image_capture.setQuality(QImageCapture.Quality.VeryHighQuality)
+        self.image_capture.setFileFormat(QImageCapture.FileFormat.PNG)
+        self.image_capture.connect(self.image_capture, SIGNAL("imageCaptured(int,QImage)"), self.image_captured)
+
+        self.video_record = QMediaRecorder(self.camera)
+        self.capture_session.setRecorder(self.video_record)
+        self.video_record.setQuality(getattr(QMediaRecorder.Quality, self.video_record_config["quality"]))
+        self.video_record.setMediaFormat(QMediaFormat.FileFormat.MPEG4)
+        self.video_record.setEncodingMode(
+            getattr(QMediaRecorder.EncodingMode, self.video_record_config["encoding_mode"])
+        )
+        self.video_record.setVideoBitRate(self.video_record_config["encoding_bitrate"])
+        self.video_record.setVideoFrameRate(self.video_record_config["framerate"])
+        self.video_record.setVideoResolution(QSize())
+        self.video_recording = False
+        return True
 
     # 保存当前帧到文件
     def capture_to_file(self):
         if not self.camera_opened:
             return
-        # self.camera.setCaptureMode(QCamera.CaptureStillImage)
-        # self.camera.searchAndLock()
-        self.capturer.capture()
-        # self.camera.unlock()
-        # self.camera.setCaptureMode(QCamera.CaptureViewfinder)
+        self.image_capture.capture()
         print("capture_to_file ok")
+
+    def record_video(self):
+        if not self.camera_opened:
+            return
+        if not self.video_recording:
+            file_name = QFileDialog.getSaveFileName(
+                self,
+                "Video save location",
+                "output.mp4",
+                "Video (*.mp4)",
+            )[0]
+            if file_name == "":
+                return
+            self.video_record.setOutputLocation(QUrl.fromLocalFile(file_name))
+            self.video_record.record()
+            self.video_recording = True
+            self.actionRecord_video.setText("Stop recording")
+            self.statusBar().showMessage("Video recording started")
+        else:
+            self.video_record.stop()
+            self.video_recording = False
+            self.actionRecord_video.setText("Record video")
+            self.statusBar().showMessage("Video recording stopped")
 
     def image_captured(self, id, preview):
         print("image_captured", id)
@@ -623,10 +735,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         )[0]
         if file_name != "":
             preview.save(file_name)
-            self.statusBar().showMessage(f"Frame saved to {file_name}")
+            self.statusBar().showMessage(f"Image saved to {file_name}")
 
     # 视频设备错误提示
-    def alert(self, s):
+    def video_alert(self, s):
         err = QMessageBox(self)
         err.setWindowTitle("Video device error")
         err.setText(s)
@@ -636,41 +748,32 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         print(err)
 
     # 启用和禁用视频设备
-    def set_webcam(self, s):
-        if s:
-            self.get_webcam(
-                self.camera_config["device_No"],
-                self.camera_config["resolution_X"],
-                self.camera_config["resolution_Y"],
-                self.camera_config["format"],
-            )
-            self.camera.start()
-            if self.camera.availability() != QMultimedia.Available:
-                self.statusBar().showMessage("Video device connect failed")
+    def set_webcam(self, state, center=False):
+        if self.serverFrame.isVisible():
+            QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
+            return False
+        if state:
+            if not self.setup_device():
                 return
-            fps = max([i.maximumFrameRate for i in self.camera.supportedViewfinderFrameRateRanges()])
+            if not self.status["fullscreen"]:
+                self.resize_window_func(center=center)
+            fps = self.camera.cameraFormat().maxFrameRate()
             self.device_event_handle("video_ok")
-            self.camerafinder.show()
             self.takeCentralWidget()
-            self.setCentralWidget(self.camerafinder)
+            self.setCentralWidget(self.videoWidget)
             self.disconnect_label.hide()
-            self.disconnect_label.setMouseTracking(False)
-            self.camerafinder.show()
-            self.camerafinder.setMouseTracking(True)
+            self.videoWidget.show()
             self.setWindowTitle(
                 f"USB KVM Client - {self.camera_config['resolution_X']}x{self.camera_config['resolution_Y']} @ {fps:.1f}"
             )
         else:
             if self.camera_opened:
                 self.camera.stop()
-                # print("video device disconnect")
                 self.device_event_handle("video_close")
                 self.takeCentralWidget()
                 self.setCentralWidget(self.disconnect_label)
-                self.camerafinder.hide()
-                self.camerafinder.setMouseTracking(False)
+                self.videoWidget.hide()
                 self.disconnect_label.show()
-                self.disconnect_label.setMouseTracking(True)
                 self.setWindowTitle("USB KVM Client")
 
     # 捕获鼠标功能
@@ -691,7 +794,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.set_ws2812b(30, 30, 0)
 
     # 通过视频设备分辨率调整窗口大小
-    def resize_window_func(self):
+    def resize_window_func(self, center=True):
         if self.status["fullscreen"]:
             return
         if self.status["screen_height"] - self.camera_config["resolution_Y"] < 100:
@@ -709,22 +812,23 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         else:
             self.showNormal()
             self.resize(self.camera_config["resolution_X"], self.camera_config["resolution_Y"] + 66)
-            qr = self.frameGeometry()
-            cp = QDesktopWidget().availableGeometry().center()
-            qr.moveCenter(cp)
-            self.move(qr.topLeft())
+            if center:
+                qr = self.frameGeometry()
+                cp = QGuiApplication.primaryScreen().availableGeometry().center()
+                qr.moveCenter(cp)
+                self.move(qr.topLeft())
         if self.camera_config["keep_aspect_ratio"]:
-            self.camerafinder.setAspectRatioMode(Qt.KeepAspectRatio)
+            self.videoWidget.setAspectRatioMode(Qt.KeepAspectRatio)
         else:
-            self.camerafinder.setAspectRatioMode(Qt.IgnoreAspectRatio)
+            self.videoWidget.setAspectRatioMode(Qt.IgnoreAspectRatio)
 
     def keep_ratio_func(self):
         self.camera_config["keep_aspect_ratio"] = not self.camera_config["keep_aspect_ratio"]
         if self.camera_config["keep_aspect_ratio"]:
-            self.camerafinder.setAspectRatioMode(Qt.KeepAspectRatio)
+            self.videoWidget.setAspectRatioMode(Qt.KeepAspectRatio)
             self.set_font_bold(self.actionKeep_ratio, True)
         else:
-            self.camerafinder.setAspectRatioMode(Qt.IgnoreAspectRatio)
+            self.videoWidget.setAspectRatioMode(Qt.IgnoreAspectRatio)
             self.set_font_bold(self.actionKeep_ratio, False)
         if not self.status["fullscreen"]:
             self.resize(self.width(), self.height() + 1)
@@ -1164,7 +1268,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if (t := int(t)) > 0:
             loop = QEventLoop()
             QTimer.singleShot(t, loop.quit)
-            loop.exec_()
+            loop.exec()
 
     def send_char(self, c):
         CLICK_INTERVAL = self.paste_board_dialog.spinBox_ci.value()
@@ -1396,13 +1500,27 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.close()
             os.startfile(sys.argv[0])
 
+    def mouseButton_to_int(self, s: Qt.MouseButton):
+        if s == Qt.LeftButton:
+            return 1
+        elif s == Qt.RightButton:
+            return 2
+        elif s == Qt.MiddleButton:
+            return 4
+        elif s == Qt.XButton1:
+            return 8
+        elif s == Qt.XButton2:
+            return 16
+        else:
+            return 0
+
     # 鼠标按下事件
     def mousePressEvent(self, event):
         if self.ignore_event:
             return
         if not self.status["mouse_capture"]:
             return
-        mouse_buffer[2] = mouse_buffer[2] | int(event.button())
+        mouse_buffer[2] = mouse_buffer[2] | self.mouseButton_to_int(event.button())
 
         hidinfo = hid_def.hid_report(mouse_buffer)
         if hidinfo == 1 or hidinfo == 4:
@@ -1414,7 +1532,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if not self.status["mouse_capture"]:
             return
-        mouse_buffer[2] = mouse_buffer[2] ^ int(event.button())
+        mouse_buffer[2] = mouse_buffer[2] ^ self.mouseButton_to_int(event.button())
 
         if mouse_buffer[2] < 0 or mouse_buffer[2] > 7:
             mouse_buffer[2] = 0
@@ -1460,7 +1578,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def mouseMoveEvent(self, event):
         if self.ignore_event:
             return
-        x, y = event.pos().x(), event.pos().y()
+        p = event.position().toPoint()
+        x, y = p.x(), p.y()
         if self.status["fullscreen"]:
             if (y < 2 and x < 2) or (x > self.width() - 2 and y > self.height() - 2):
                 if (y < 2 and x < 2) and self.menuBar().isHidden() and not self.mouse_action_timer.isActive():
@@ -1497,10 +1616,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         else:
             x_res = self.camera_config["resolution_X"]
             y_res = self.camera_config["resolution_Y"]
-            width = self.camerafinder.width()
-            height = self.camerafinder.height()
+            width = self.videoWidget.width()
+            height = self.videoWidget.height()
             # x_pos = self.camerafinder.pos().x()
-            y_pos = self.camerafinder.pos().y()
+            y_pos = self.videoWidget.pos().y()
         x_diff = 0
         y_diff = 0
         if self.camera_config["keep_aspect_ratio"]:
@@ -1653,6 +1772,169 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.numkeyboard_dialog.close()
         return super().closeEvent(event)
 
+    @Slot()
+    def on_btnServerSwitch_clicked(self):
+        if self.server.running:
+            self.server.stop_server()
+            self.btnServerSwitch.setIcon(load_icon("Play"))
+            logger.info("Server stopped")
+            self.kvmSetPortSpin.setEnabled(True)
+            self.kvmSetHostLine.setEnabled(True)
+            self.kvmSetQualitySpin.setEnabled(True)
+            self.kvmSetFpsSpin.setEnabled(True)
+            self.kvmSetDeviceCombo.setEnabled(True)
+            self.kvmSetResCombo.setEnabled(True)
+        else:
+            if self.kvmSetDeviceCombo.currentText() == "" or self.kvmSetResCombo.currentText() == "":
+                QMessageBox.warning(self, "Warning", "Invalid device")
+                return
+            self.server.config["video"]["quality"] = self.kvmSetQualitySpin.value()
+            self.server.config["video"]["fps"] = self.kvmSetFpsSpin.value()
+            width, height = self.kvmSetResCombo.currentText().split("x")
+            self.server.config["video"]["width"] = int(width)
+            self.server.config["video"]["height"] = int(height)
+            try:
+                host = self.kvmSetHostLine.text()
+                port = self.kvmSetPortSpin.value()
+                self.server.start_server(
+                    host=host,
+                    device=self.kvmSetDeviceCombo.currentText(),
+                    port=port,
+                )
+            except Exception as e:
+                self.server.running = False
+                logger.exception(f"Server start failed")
+                return
+            self.btnServerSwitch.setIcon(load_icon("Pause"))
+            self.kvmSetPortSpin.setEnabled(False)
+            self.kvmSetHostLine.setEnabled(False)
+            self.kvmSetQualitySpin.setEnabled(False)
+            self.kvmSetFpsSpin.setEnabled(False)
+            self.kvmSetDeviceCombo.setEnabled(False)
+            self.kvmSetResCombo.setEnabled(False)
+            logger.info(f"Server hosting on {host}:{port}")
+
+    @Slot()
+    def on_btnServerSetAuth_clicked(self):
+        # ask if auth is enabled
+        box = QMessageBox(self)
+        box.setWindowTitle("HTTP Authentication")
+        if self.server.auth_required:
+            box.setText(f"Authentication is enabled ({count_auth_users()} users)")
+            box.b1 = box.addButton("Disable", QMessageBox.ActionRole)
+        else:
+            box.setText(f"Authentication is disabled")
+            box.b1 = box.addButton("Enable", QMessageBox.ActionRole)
+        box.b2 = box.addButton("Add User", QMessageBox.ActionRole)
+        box.exec()
+        if box.clickedButton() == box.b1:
+            self.server.auth_required = not self.server.auth_required
+            logger.info(f"Authentication {'enabled' if self.server.auth_required else 'disabled'}")
+            if self.server.auth_required and not count_auth_users():
+                logger.warning("No user found, remember to add one")
+        elif box.clickedButton() == box.b2:
+            username, ret = QInputDialog.getText(self, "Add User", "Username:", QLineEdit.Normal, "")
+            if not ret:
+                return
+            password, ret = QInputDialog.getText(self, "Add User", "Password:", QLineEdit.Normal, "")
+            if not ret:
+                return
+            add_auth_user(username, password)
+            logger.info(f"User {username} added")
+
+    def refresh_server_device_list(self):
+        self.kvmSetDeviceCombo.clear()
+        cameras = QMediaDevices.videoInputs()
+        devices = []
+        rmbd = self.camera_config["device_name"]
+        for camera in cameras:
+            self.kvmSetDeviceCombo.addItem(camera.description())
+            devices.append(camera.description())
+        if rmbd in devices:
+            self.kvmSetDeviceCombo.setCurrentText(rmbd)
+        else:
+            self.kvmSetDeviceCombo.setCurrentIndex(0)
+        self.update_server_device_info()
+
+    def update_server_device_info(self):
+        self.kvmSetResCombo.clear()
+        selected = self.kvmSetDeviceCombo.currentText()
+        cameras = QMediaDevices.videoInputs()
+        for camera in cameras:
+            if camera.description() == selected:
+                camera_info = camera
+                break
+        else:
+            return
+        res_list = []
+        max_fps = 0
+        min_fps = 999
+        for i in camera_info.videoFormats():
+            resolutions_str = f"{i.resolution().width()}x{i.resolution().height()}"
+            if resolutions_str not in res_list:
+                res_list.append(resolutions_str)
+                self.kvmSetResCombo.addItem(resolutions_str)
+            if i.maxFrameRate() > max_fps:
+                max_fps = i.maxFrameRate()
+            if i.minFrameRate() < min_fps:
+                min_fps = i.minFrameRate()
+        self.kvmSetFpsSpin.setMaximum(max_fps)
+        self.kvmSetFpsSpin.setMinimum(min_fps)
+        self.kvmSetFpsSpin.setValue(max_fps)
+
+    def open_server_manager(self):
+        if not self.serverFrame.isVisible():
+            if self.camera_opened:
+                ret = QMessageBox.warning(
+                    self,
+                    "Warning",
+                    "Video device is opened, close it?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if ret == QMessageBox.Yes:
+                    self.set_webcam(False)
+                else:
+                    return
+            self.takeCentralWidget()
+            self.setCentralWidget(self.serverFrame)
+            self.disconnect_label.hide()
+            self.serverFrame.show()
+            self.actionOpen_Server_Manager.setText("Close Server Manager")
+            self.refresh_server_device_list()
+            self.btnServerSwitch.setIcon(load_icon("Play"))
+            self.btnServerOpenBrowser.setIcon(load_icon("Safari"))
+            self.btnServerSetAuth.setIcon(load_icon("Lock"))
+        else:
+            if self.server.running:
+                ret = QMessageBox.warning(
+                    self,
+                    "Warning",
+                    "Server is running, stop it?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if ret == QMessageBox.Yes:
+                    self.on_btnServerSwitch_clicked()
+                else:
+                    return
+            self.takeCentralWidget()
+            self.setCentralWidget(self.disconnect_label)
+            self.serverFrame.hide()
+            self.disconnect_label.show()
+            self.actionOpen_Server_Manager.setText("Open Server Manager")
+
+    @Slot()
+    def on_btnServerOpenBrowser_clicked(self):
+        if not self.server.running:
+            return
+        url = f"http://127.0.0.1:{self.kvmSetPortSpin.value()}"
+        QDesktopServices.openUrl(QUrl(url))
+
+    def set_log_text(self, text):
+        self.serverLogEdit.setText(text)
+        self.serverLogEdit.moveCursor(QTextCursor.End)
+
 
 def error_log(msg):
     with open("error.log", "a") as f:
@@ -1667,7 +1949,7 @@ if __name__ == "__main__":
     myWin.show()
     QTimer.singleShot(100, myWin.shortcut_status)
     try:
-        ret = app.exec_()
+        ret = app.exec()
     except Exception as e:
         import traceback
 

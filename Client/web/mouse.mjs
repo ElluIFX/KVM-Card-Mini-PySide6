@@ -1,18 +1,39 @@
 var last_mouse_down_time = 0;
+var last_mouse_x = 0;
+var last_mouse_y = 0;
 // if up and down are too close, delay the up event 50ms
 export function sendEvent(channel, data, type) {
   let payload = new Array(2);
   payload.fill(0);
   if (type === 'move') {
-    var type_msg = 'write_mouse_offset'
-    payload[0] = data[0] * 15;
-    payload[1] = data[1] * 15;
+    // var type_msg = 'mouse_offset'
+    // payload[0] = data[0];
+    // payload[1] = data[1];
+    var type_msg = 'mouse_pos'
+    last_mouse_x += data[0];
+    last_mouse_y += data[1];
+    if (last_mouse_x > 0x7fff) {
+      last_mouse_x = 0x7fff
+    }
+    if (last_mouse_x < 0) {
+      last_mouse_x = 0
+    }
+    if (last_mouse_y > 0x7fff) {
+      last_mouse_y = 0x7fff
+    }
+    if (last_mouse_y < 0) {
+      last_mouse_y = 0
+    }
+    payload[0] = last_mouse_x;
+    payload[1] = last_mouse_y;
   } else if (type === 'abs') {
-    var type_msg = 'write_mouse_pos'
+    var type_msg = 'mouse_pos'
     payload[0] = data[0];
     payload[1] = data[1];
+    last_mouse_x = data[0];
+    last_mouse_y = data[1];
   } else if (type === 'mousedown') {
-    var type_msg = 'write_mouse_button'
+    var type_msg = 'mouse_btn'
     payload[1] = 2;
     switch (data) {
       case 0:
@@ -31,12 +52,12 @@ export function sendEvent(channel, data, type) {
         payload[0] = 16;
         break;
       default:
-        console.warn('Unknown mouse button', data);
+        console.warn('Unknown mouse btn', data);
         return;
     }
     last_mouse_down_time = Date.now();
   } else if (type === 'mouseup') {
-    var type_msg = 'write_mouse_button'
+    var type_msg = 'mouse_btn'
     payload[1] = 3;
     switch (data) {
       case 0:
@@ -58,10 +79,10 @@ export function sendEvent(channel, data, type) {
         return;
     }
   } else if (type === 'wheel') {
-    var type_msg = 'write_mouse_wheel'
+    var type_msg = 'mouse_wheel'
     payload[0] = Math.round(data / 40);
   } else if (type === 'reset') {
-    var type_msg = 'write_mouse_button'
+    var type_msg = 'mouse_btn'
     payload[1] = 1;
   } else {
     return;

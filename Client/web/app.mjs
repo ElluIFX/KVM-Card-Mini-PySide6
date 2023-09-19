@@ -6,6 +6,8 @@ new Vue({
   el: '#app',
   data: {
     serviceHost: location.hostname,
+    port: location.port || 80,
+    secret: location.search.replace('?s=', ''),
     streamSrc: '',
     $channel: null,
     isKeyCaptureActive: false,
@@ -17,39 +19,65 @@ new Vue({
     pasteContent: '',
     screenWidth: 0,
     screenHeight: 0,
+    screenFps: 0,
+    screenQuality: 0,
+    mouseSpeed: 15,
     keyAltPressed: false,
     keyCtrlPressed: false,
     toolbarVisible: true,
+    set_width: 0,
+    set_height: 0,
+    set_fps: 0,
+    set_quality: 0,
+    set_mouse_speed: 0,
+    isSeqSending: false,
   },
   mounted() {
     this.init();
   },
   methods: {
     async init() {
+      if (this.secret) {
+        console.debug('Secret: ' + this.secret);
+      }
       try {
         const config = await this.fetchConfig();
         document.title = config.web_title;
 
-        const streamOk = await this.pingStream(config.port);
+        const streamOk = await this.pingStream(this.port);
         if (!streamOk) {
           alert('Video stream seems not ready, check terminal for more info.');
         }
         this.$channel = await ws.init(
-          `ws://${this.serviceHost}:${config.port}/websocket`
+          `ws://${this.serviceHost}:${this.port}/websocket`
         );
         this.bindKeyHandler();
         this.bindMouseHandler();
 
-        this.streamSrc = `http://${this.serviceHost}:${config.port}/stream`;
+        this.streamSrc = `http://${this.serviceHost}:${this.port}/stream`;
+        if (this.secret) {
+          this.streamSrc += `?s=${this.secret}`;
+        }
         this.screenWidth = config.video.width;
         this.screenHeight = config.video.height;
+        this.screenFps = config.video.fps;
+        this.screenQuality = config.video.quality;
+        this.set_width = config.video.width;
+        this.set_height = config.video.height;
+        this.set_fps = config.video.fps;
+        this.set_quality = config.video.quality;
+        this.set_mouse_speed = this.mouseSpeed;
       } catch (e) {
         alert(e.toString());
       }
     },
     async pingStream(port) {
       try {
-        const pingRes = await fetch(`http://${this.serviceHost}:${port}/snapshot`);
+        let pingAddr = `http://${this.serviceHost}:${port}/snapshot`;
+        if (this.secret) {
+          pingAddr += `?s=${this.secret}`;
+        }
+        const pingRes = await fetch(pingAddr);
         return pingRes.status === 200;
       } catch (e) {
         return false;
@@ -57,11 +85,49 @@ new Vue({
     },
     async fetchConfig() {
       try {
-        const res = await fetch('/api/config');
+        if (this.secret) {
+          const res = await fetch(`/config?s=${this.secret}`);
+          return res.json();
+        }
+        const res = await fetch('/config');
         return res.json();
       } catch (e) {
         return null;
       }
+    },
+    async applySettings() {
+      try {
+        // send config to /config?res=AAxBB&fps=XX&quality=XX
+        this.mouseSpeed = this.set_mouse_speed;
+        let resAddr = `/config?res=${this.set_width}x${this.set_height}&fps=${this.set_fps}&quality=${this.set_quality}`;
+        if (this.secret) {
+          resAddr += `&s=${this.secret}`;
+        }
+        const res = await fetch(resAddr);
+        if (res.status === 200) {
+          const config = await res.json();
+          this.screenWidth = config.video.width;
+          this.screenHeight = config.video.height;
+          this.screenFps = config.video.fps;
+          this.screenQuality = config.video.quality;
+          this.set_width = config.video.width;
+          this.set_height = config.video.height;
+          this.set_fps = config.video.fps;
+          this.set_quality = config.video.quality;
+          console.info('Apply settings success\nNew config: ' + this.set_width + 'x' + this.set_height + ' ' + this.set_fps + 'fps ' + this.set_quality + ' quality');
+        } else {
+          alert('Apply config failed');
+        }
+      } catch (e) {
+        alert(e.toString());
+      }
+    },
+    cancelSettings() {
+      this.set_width = this.screenWidth;
+      this.set_height = this.screenHeight;
+      this.set_fps = this.screenFps;
+      this.set_quality = this.screenQuality;
+      this.set_mouse_speed = this.mouseSpeed;
     },
     bindKeyHandler() {
       document.addEventListener('keydown', (evt) => {
@@ -224,8 +290,8 @@ new Vue({
         this.mouseAbsChanged = true;
         return;
       }
-      this.mouseMoveSlice[0] += evt.movementX;
-      this.mouseMoveSlice[1] += evt.movementY;
+      this.mouseMoveSlice[0] += evt.movementX * this.mouseSpeed;
+      this.mouseMoveSlice[1] += evt.movementY * this.mouseSpeed;
     },
     onScreenMouseDown(evt) {
       if (!this.isKeyCaptureActive) {
@@ -255,9 +321,14 @@ new Vue({
       evt.preventDefault();
       mouse.sendEvent(this.$channel, evt.wheelDeltaY, 'wheel');
     },
-    doRemotePaste() {
-      kb.sendSequence(this.$channel, this.pasteContent);
+    async doRemotePaste() {
+      if (this.isSeqSending) {
+        return;
+      }
+      this.isSeqSending = true;
+      await kb.sendSequence(this.$channel, this.pasteContent);
       this.pasteContent = '';
+      this.isSeqSending = false;
     },
     setDialog(name) {
       if (name) {

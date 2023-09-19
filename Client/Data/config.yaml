@@ -1,11 +1,8 @@
 camera_config:
   auto_connect: false
   device_No: 0
-  device_name:
-  - USB Video
-  - USB3 Video
-  - OBS-Camera
-  format: YUYV
+  device_name: USB Video
+  format: NV12
   keep_aspect_ratio: true
   resolution_X: 1280
   resolution_Y: 720
@@ -49,3 +46,8 @@ shortcut_key:
   - Ctrl+Shift+Esc
   - Alt+F4
   - Meta+R
+video_record_config:
+  encoding_bitrate: 10000000
+  encoding_mode: ConstantQualityEncoding
+  framerate: 0
+  quality: HighQuality
