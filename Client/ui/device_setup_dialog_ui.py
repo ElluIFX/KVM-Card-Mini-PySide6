@@ -24,7 +24,7 @@ class Ui_Dialog(object):
         if not Dialog.objectName():
             Dialog.setObjectName(u"Dialog")
         Dialog.setWindowModality(Qt.NonModal)
-        Dialog.resize(298, 238)
+        Dialog.resize(279, 259)
         Dialog.setMaximumSize(QSize(16777215, 300))
         Dialog.setLayoutDirection(Qt.LeftToRight)
         self.formLayout = QFormLayout(Dialog)
@@ -55,7 +55,7 @@ class Ui_Dialog(object):
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
 
-        self.formLayout.setWidget(9, QFormLayout.FieldRole, self.buttonBox)
+        self.formLayout.setWidget(10, QFormLayout.FieldRole, self.buttonBox)
 
         self.label_3 = QLabel(Dialog)
         self.label_3.setObjectName(u"label_3")
@@ -70,7 +70,7 @@ class Ui_Dialog(object):
         self.checkBoxAudio = QCheckBox(Dialog)
         self.checkBoxAudio.setObjectName(u"checkBoxAudio")
 
-        self.formLayout.setWidget(8, QFormLayout.FieldRole, self.checkBoxAudio)
+        self.formLayout.setWidget(9, QFormLayout.FieldRole, self.checkBoxAudio)
 
         self.label_4 = QLabel(Dialog)
         self.label_4.setObjectName(u"label_4")
@@ -91,13 +91,18 @@ class Ui_Dialog(object):
         self.checkBoxAutoConnect = QCheckBox(Dialog)
         self.checkBoxAutoConnect.setObjectName(u"checkBoxAutoConnect")
 
-        self.formLayout.setWidget(7, QFormLayout.FieldRole, self.checkBoxAutoConnect)
+        self.formLayout.setWidget(8, QFormLayout.FieldRole, self.checkBoxAutoConnect)
 
         self.comboBox_5 = QComboBox(Dialog)
         self.comboBox_5.setObjectName(u"comboBox_5")
         self.comboBox_5.setMouseTracking(False)
 
         self.formLayout.setWidget(6, QFormLayout.FieldRole, self.comboBox_5)
+
+        self.label_7 = QLabel(Dialog)
+        self.label_7.setObjectName(u"label_7")
+
+        self.formLayout.setWidget(7, QFormLayout.SpanningRole, self.label_7)
 
 
         self.retranslateUi(Dialog)
@@ -112,9 +117,10 @@ class Ui_Dialog(object):
         self.label.setText(QCoreApplication.translate("Dialog", u"Device", None))
         self.label_2.setText(QCoreApplication.translate("Dialog", u"Resolution", None))
         self.label_3.setText(QCoreApplication.translate("Dialog", u"Format", None))
-        self.checkBoxAudio.setText(QCoreApplication.translate("Dialog", u"Audio redirection", None))
+        self.checkBoxAudio.setText(QCoreApplication.translate("Dialog", u"Audio support", None))
         self.label_4.setText(QCoreApplication.translate("Dialog", u"Audio IN", None))
         self.label_5.setText(QCoreApplication.translate("Dialog", u"Audio OUT", None))
         self.checkBoxAutoConnect.setText(QCoreApplication.translate("Dialog", u"Auto Connect on startup", None))
+        self.label_7.setText(QCoreApplication.translate("Dialog", u"* Audio routing only work in video recording", None))
     # retranslateUi
 

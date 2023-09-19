@@ -3,10 +3,13 @@ import os
 import random
 import re
 import sys
+import tempfile
 import time
 from typing import List, Tuple, Union
 
 import hid_def
+import pythoncom
+import pyWinhook as pyHook
 import yaml  # type: ignore
 from loguru import logger
 from PySide6 import *
@@ -200,6 +203,7 @@ class MyNumKeyboardDialog(QDialog, numboard_ui.Ui_Dialog):
 class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     _disconnect_signal = Signal()
     _log_signal = Signal(str)
+    _wheel_signal = Signal()
 
     def __init__(self, parent=None):
         self.ignore_event = False
@@ -208,6 +212,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         self.camera = None
         self.camera_opened = False
+        self.camera_info = None
+        self.audio_opened = False
         self.device_connected = False
 
         # 子窗口
@@ -252,11 +258,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.keyboard_code = yaml.safe_load(load_f)
             with open(os.path.join(ARGV_PATH, "data", "config.yaml"), "r") as load_f:
                 self.configfile = yaml.safe_load(load_f)
-            self.camera_config = self.configfile["camera_config"]
             self.config = self.configfile["config"]
             self.video_record_config = self.configfile["video_record_config"]
-            if self.config["debug"]:
-                hid_def.set_debug(True)
+            self.video_config = self.configfile["video_config"]
+            self.audio_config = self.configfile["audio_config"]
             self.fullscreen_key = getattr(Qt, f'Key_{self.config["fullscreen_key"]}')
         except Exception as e:
             QMessageBox.critical(
@@ -385,8 +390,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionWindows_Device_Manager.setIcon(load_icon("device"))
         self.actionNum_Keyboard.setIcon(load_icon("numkey"))
         self.actionOpen_Server_Manager.setIcon(load_icon("server"))
+        self.actionSystem_hook.setIcon(load_icon("hook"))
 
-        if self.camera_config["keep_aspect_ratio"]:
+        if self.video_config["keep_aspect_ratio"]:
             self.set_font_bold(self.actionKeep_ratio, True)
         self.set_font_bold(self.actionQuick_paste, True)
 
@@ -415,15 +421,15 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             action.triggered.connect(lambda checked, i=i: self.shortcut_key_action(i))
 
         # 按键绑定
-        self.action_video_device_connect.triggered.connect(lambda: self.set_webcam(True))
-        self.action_video_device_disconnect.triggered.connect(lambda: self.set_webcam(False))
+        self.action_video_device_connect.triggered.connect(lambda: self.set_device(True))
+        self.action_video_device_disconnect.triggered.connect(lambda: self.set_device(False))
         self.action_video_devices.triggered.connect(self.device_config)
         self.actionCustomKey.triggered.connect(self.shortcut_key_func)
         self.actionReload_Key_Mouse.triggered.connect(lambda: self.reset_keymouse(4))
         self.actionMinimize.triggered.connect(self.window_minimized)
         self.actionexit.triggered.connect(sys.exit)
 
-        self.device_setup_dialog.comboBox.currentIndexChanged.connect(self.update_device_setup_resolutions)
+        self.device_setup_dialog.comboBox.currentIndexChanged.connect(self.update_device_info)
 
         self.action_fullscreen.triggered.connect(self.fullscreen_func)
         self.action_Resize_window.triggered.connect(self.resize_window_func)
@@ -443,6 +449,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionHide_cursor.triggered.connect(self.hide_cursor_func)
         self.actionQuick_paste.triggered.connect(self.quick_paste_func)
         self.actionNum_Keyboard.triggered.connect(self.num_keyboard_func)
+        self.actionSystem_hook.triggered.connect(self.system_hook_func)
 
         self.actionOn_screen_Keyboard.triggered.connect(lambda: self.menu_tools_actions(0))
         self.actionCalculator.triggered.connect(lambda: self.menu_tools_actions(1))
@@ -458,6 +465,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.paste_board_dialog.pushButtonFile.clicked.connect(self.paste_board_file_select)
 
         self.kvmSetDeviceCombo.currentTextChanged.connect(self.update_server_device_info)
+
+        self.device_setup_dialog.checkBoxAudio.setChecked(self.audio_config["audio_support"])
+        self.device_setup_dialog.checkBoxAudio.stateChanged.connect(self.audio_checkbox_switch)
+        self.audio_checkbox_switch()
 
         self.paste_board_dialog.spinBox_ci.setValue(self.configfile["paste_board"]["click_interval"])
         self.paste_board_dialog.spinBox_ps.setValue(self.configfile["paste_board"]["packet_size"])
@@ -495,17 +506,54 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         self._log_signal.connect(self.set_log_text)
         fake_std.callback = self._log_signal.emit
-        self.server = KVM_Server()
+        self.server = KVM_Server(parent=self)
+        self._wheel_signal.connect(self.mouse_wheel_act)
+
+        self.hook_state = False
+        self.hook_manager = pyHook.HookManager()
+        self.hook_manager.KeyDown = self.hook_keyboard_down_event
+        self.hook_manager.KeyUp = self.hook_keyboard_up_event
+        self.pythoncom_timer = QTimer()
+        self.pythoncom_timer.timeout.connect(lambda: pythoncom.PumpWaitingMessages())
+        self.hook_pressed_keys = []
 
         self.status["init_ok"] = True
 
         self.camera_list_inited = False
-        if self.camera_config["auto_connect"]:
+        if self.video_config["auto_connect"]:
             self.device_setup_dialog.checkBoxAutoConnect.setChecked(True)
-            QTimer().singleShot(1000, lambda: self.set_webcam(True, center=True))
+            QTimer().singleShot(1000, lambda: self.set_device(True, center=True))
+
+    code_remap = {
+        "Rcontrol": 0x011D,
+        "Lwin": 0x015B,
+        "Rwin": 0x015C,
+    }
+
+    def hook_keyboard_down_event(self, event):
+        print(f"Hook: {event.Key} {event.ScanCode}")
+        if event.Key in self.code_remap:
+            scan_code = self.code_remap[event.Key]
+        else:
+            scan_code = event.ScanCode
+        if scan_code not in self.hook_pressed_keys:
+            self.hook_pressed_keys.append(scan_code)
+            self.keyPress(scan_code)
+        return False
+
+    def hook_keyboard_up_event(self, event):
+        if event.Key in self.code_remap:
+            scan_code = self.code_remap[event.Key]
+        else:
+            scan_code = event.ScanCode
+        self.keyRelease(scan_code)
+        try:
+            self.hook_pressed_keys.remove(scan_code)
+        except ValueError:
+            pass
+        return False
 
     def statusbar_func(self, act):
-        # print(f"action={act}")
         if act == 1:
             if self.shortcut_key_dialog.isVisible():
                 self.shortcut_key_dialog.close()
@@ -547,6 +595,50 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         with open(os.path.join(ARGV_PATH, "data", "config.yaml"), "w", encoding="utf-8") as f:
             yaml.dump(self.configfile, f)
 
+    def audio_checkbox_switch(self):
+        if self.device_setup_dialog.checkBoxAudio.isChecked():
+            self.device_setup_dialog.comboBox_4.show()
+            self.device_setup_dialog.comboBox_5.show()
+            self.device_setup_dialog.label_4.show()
+            self.device_setup_dialog.label_5.show()
+            self.device_setup_dialog.label_7.show()
+            self.device_setup_dialog.setMaximumHeight(270)
+            self.device_setup_dialog.setMinimumHeight(270)
+            self.update_audio_devices()
+        else:
+            self.device_setup_dialog.comboBox_4.hide()
+            self.device_setup_dialog.comboBox_5.hide()
+            self.device_setup_dialog.label_4.hide()
+            self.device_setup_dialog.label_5.hide()
+            self.device_setup_dialog.label_7.hide()
+            self.device_setup_dialog.setMaximumHeight(200)
+            self.device_setup_dialog.setMinimumHeight(200)
+        self.device_setup_dialog.adjustSize()
+
+    def update_audio_devices(self):
+        self.device_setup_dialog.comboBox_4.clear()
+        self.device_setup_dialog.comboBox_5.clear()
+        self.device_setup_dialog.comboBox_4.addItem("Default")
+        self.device_setup_dialog.comboBox_5.addItem("Default")
+        in_devices = QMediaDevices.audioInputs()
+        out_devices = QMediaDevices.audioOutputs()
+        devices = ["Default"]
+        for i in in_devices:
+            self.device_setup_dialog.comboBox_4.addItem(i.description())
+            devices.append(i.description())
+        if self.audio_config["audio_device_in"] in devices:
+            self.device_setup_dialog.comboBox_4.setCurrentText(self.audio_config["audio_device_in"])
+        else:
+            self.device_setup_dialog.comboBox_4.setCurrentIndex(0)
+        devices = ["Default"]
+        for i in out_devices:
+            self.device_setup_dialog.comboBox_5.addItem(i.description())
+            devices.append(i.description())
+        if self.audio_config["audio_device_out"] in devices:
+            self.device_setup_dialog.comboBox_5.setCurrentText(self.audio_config["audio_device_out"])
+        else:
+            self.device_setup_dialog.comboBox_5.setCurrentIndex(0)
+
     # 弹出采集卡设备设置窗口，并打开采集卡设备
     def device_config(self):
         if self.serverFrame.isVisible():
@@ -555,8 +647,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         self.device_setup_dialog.comboBox.clear()
         cameras = QMediaDevices.videoInputs()
-        remember_name = self.camera_config["device_name"]
-        # self.camera_config["device_name"] = ""
+        remember_name = self.video_config["device_name"]
+        # self.video_config["device_name"] = ""
         devices = []
         for camera in cameras:
             self.device_setup_dialog.comboBox.addItem(camera.description())
@@ -564,22 +656,25 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.camera_list_inited = True
         if remember_name in devices:
             self.device_setup_dialog.comboBox.setCurrentText(remember_name)
-            self.update_device_setup_resolutions()
-            resolution_str = str(self.camera_config["resolution_X"]) + "x" + str(self.camera_config["resolution_Y"])
+            self.update_device_info()
+            resolution_str = str(self.video_config["resolution_X"]) + "x" + str(self.video_config["resolution_Y"])
             self.device_setup_dialog.comboBox_2.setCurrentText(resolution_str)
-            self.device_setup_dialog.comboBox_3.setCurrentText(self.camera_config["format"])
+            self.device_setup_dialog.comboBox_3.setCurrentText(self.video_config["format"])
         else:
             self.device_setup_dialog.comboBox.setCurrentIndex(0)
-            self.update_device_setup_resolutions()
+            self.update_device_info()
             self.device_setup_dialog.comboBox_2.setCurrentIndex(0)
             self.device_setup_dialog.comboBox_3.setCurrentIndex(0)
             try:
-                self.camera_config["resolution_X"] = self.device_setup_dialog.comboBox_2.currentText().split("x")[0]
-                self.camera_config["resolution_Y"] = self.device_setup_dialog.comboBox_2.currentText().split("x")[1]
+                self.video_config["resolution_X"] = self.device_setup_dialog.comboBox_2.currentText().split("x")[0]
+                self.video_config["resolution_Y"] = self.device_setup_dialog.comboBox_2.currentText().split("x")[1]
             except:
-                self.camera_config["resolution_X"] = 0
-                self.camera_config["resolution_Y"] = 0
-            self.camera_config["format"] = self.device_setup_dialog.comboBox_3.currentText()
+                self.video_config["resolution_X"] = 0
+                self.video_config["resolution_Y"] = 0
+            self.video_config["format"] = self.device_setup_dialog.comboBox_3.currentText()
+
+        if self.device_setup_dialog.checkBoxAudio.isChecked():
+            self.update_audio_devices()
 
         wm_pos = self.geometry()
         wm_size = self.size()
@@ -588,39 +683,39 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             wm_pos.y() + wm_size.height() / 2 - self.device_setup_dialog.height() / 2,
         )
         # 如果选择设备
-        info = self.device_setup_dialog.exec()
+        ret = self.device_setup_dialog.exec()
 
-        if info == 1:
-            print(self.device_setup_dialog.comboBox.currentIndex())
-            print(self.device_setup_dialog.comboBox_2.currentText().split("x"))
-            try:
-                self.camera_config["device_name"] = self.device_setup_dialog.comboBox.currentText()
-                self.camera_config["resolution_X"] = int(
-                    self.device_setup_dialog.comboBox_2.currentText().split("x")[0]
-                )
-                self.camera_config["resolution_Y"] = int(
-                    self.device_setup_dialog.comboBox_2.currentText().split("x")[1]
-                )
-                self.camera_config["format"] = self.device_setup_dialog.comboBox_3.currentText()
-            except:
-                self.video_alert("Selected invalid device")
-                return
-            print(self.camera_config)
-            try:
-                self.set_webcam(True, center=True)
-                self.camera_config["auto_connect"] = self.device_setup_dialog.checkBoxAutoConnect.isChecked()
-                self.save_config()
-            except Exception as e:
-                print(e)
+        if not ret:
+            return
+        try:
+            self.video_config["device_name"] = self.device_setup_dialog.comboBox.currentText()
+            self.video_config["resolution_X"] = int(self.device_setup_dialog.comboBox_2.currentText().split("x")[0])
+            self.video_config["resolution_Y"] = int(self.device_setup_dialog.comboBox_2.currentText().split("x")[1])
+            self.video_config["format"] = self.device_setup_dialog.comboBox_3.currentText()
+
+            if self.device_setup_dialog.checkBoxAudio.isChecked():
+                self.audio_config["audio_device_in"] = self.device_setup_dialog.comboBox_4.currentText()
+                self.audio_config["audio_device_out"] = self.device_setup_dialog.comboBox_5.currentText()
+        except:
+            self.video_alert("Selected invalid device")
+            return
+        print(self.video_config)
+        try:
+            self.set_device(True, center=True)
+            self.video_config["auto_connect"] = self.device_setup_dialog.checkBoxAutoConnect.isChecked()
+            self.audio_config["audio_support"] = self.device_setup_dialog.checkBoxAudio.isChecked()
+            self.save_config()
+        except Exception as e:
+            print(e)
 
     # 获取采集卡分辨率
-    def update_device_setup_resolutions(self):
+    def update_device_info(self):
         self.device_setup_dialog.comboBox_2.clear()
         self.device_setup_dialog.comboBox_3.clear()
         cameras = QMediaDevices.videoInputs()
         if not self.camera_list_inited:
             for camera in cameras:
-                if camera.description() == self.camera_config["device_name"]:
+                if camera.description() == self.video_config["device_name"]:
                     self.camera_info = camera
                     break
             else:
@@ -651,22 +746,52 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
             return False
         if self.camera_info is None:
-            self.update_device_setup_resolutions()
+            self.update_device_info()
             if self.camera_info is None:
                 self.video_alert("Target video device not found")
                 return False
         self.camera = QCamera(self.camera_info)
         for i in self.camera_info.videoFormats():
             if (
-                i.resolution().width() == self.camera_config["resolution_X"]
-                and i.resolution().height() == self.camera_config["resolution_Y"]
-                and i.pixelFormat().name.split("_")[1] == self.camera_config["format"]
+                i.resolution().width() == self.video_config["resolution_X"]
+                and i.resolution().height() == self.video_config["resolution_Y"]
+                and i.pixelFormat().name.split("_")[1] == self.video_config["format"]
             ):
                 self.camera.setCameraFormat(i)
                 break
         else:
             self.video_alert("Unsupported combination of resolution and format")
             return False
+
+        if self.device_setup_dialog.checkBoxAudio.isChecked():
+            in_devices = QMediaDevices.audioInputs()
+            out_devices = QMediaDevices.audioOutputs()
+            in_device_name = self.audio_config["audio_device_in"]
+            out_device_name = self.audio_config["audio_device_out"]
+            if in_device_name == "Default":
+                in_device = QMediaDevices.defaultAudioInput()
+            else:
+                for i in in_devices:
+                    if i.description() == in_device_name:
+                        in_device = i
+                        break
+                else:
+                    in_device = None
+            if out_device_name == "Default":
+                out_device = QMediaDevices.defaultAudioOutput()
+            else:
+                for i in out_devices:
+                    if i.description() == out_device_name:
+                        out_device = i
+                        break
+                else:
+                    out_device = None
+            if in_device is None or out_device is None:
+                self.video_alert("Audio device not found")
+                return False
+            self.audio_in_device = in_device
+            self.audio_out_device = out_device
+
         self.camera.start()
         if not self.camera.isActive():
             self.video_alert("Video device connect failed")
@@ -693,6 +818,21 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.video_record.setVideoFrameRate(self.video_record_config["framerate"])
         self.video_record.setVideoResolution(QSize())
         self.video_recording = False
+
+        if self.device_setup_dialog.checkBoxAudio.isChecked():
+            self.audio_input = QAudioInput(self.audio_in_device)
+            self.audio_output = QAudioOutput(self.audio_out_device)
+            self.audio_input.setVolume(1)
+            self.audio_output.setVolume(1)
+            self.audio_input.setMuted(False)
+            self.audio_output.setMuted(False)
+            self.capture_session.setAudioInput(self.audio_input)
+            self.capture_session.setAudioOutput(self.audio_output)
+            self.audio_opened = True
+            # self.video_record.setAudioBitRate(16)
+            # self.video_record.setAudioSampleRate(48000)
+            # self.video_record.record()
+            print("Audio device ok")
         return True
 
     # 保存当前帧到文件
@@ -705,6 +845,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def record_video(self):
         if not self.camera_opened:
             return
+        if self.video_record.recorderState() == QMediaRecorder.RecorderState.RecordingState:
+            self.video_record.stop()
         if not self.video_recording:
             file_name = QFileDialog.getSaveFileName(
                 self,
@@ -748,7 +890,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         print(err)
 
     # 启用和禁用视频设备
-    def set_webcam(self, state, center=False):
+    def set_device(self, state, center=False):
         if self.serverFrame.isVisible():
             QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
             return False
@@ -764,7 +906,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.disconnect_label.hide()
             self.videoWidget.show()
             self.setWindowTitle(
-                f"USB KVM Client - {self.camera_config['resolution_X']}x{self.camera_config['resolution_Y']} @ {fps:.1f}"
+                f"USB KVM Client - {self.video_config['resolution_X']}x{self.video_config['resolution_Y']} @ {fps:.1f}"
             )
         else:
             if self.camera_opened:
@@ -775,6 +917,16 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.videoWidget.hide()
                 self.disconnect_label.show()
                 self.setWindowTitle("USB KVM Client")
+                del self.capture_session
+                del self.camera
+                del self.image_capture
+                del self.video_record
+                if self.audio_opened:
+                    del self.audio_input
+                    del self.audio_output
+                    del self.audio_in_device
+                    del self.audio_out_device
+                    self.audio_opened = False
 
     # 捕获鼠标功能
     def capture_mouse(self):
@@ -797,34 +949,34 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def resize_window_func(self, center=True):
         if self.status["fullscreen"]:
             return
-        if self.status["screen_height"] - self.camera_config["resolution_Y"] < 100:
+        if self.status["screen_height"] - self.video_config["resolution_Y"] < 100:
             self.showNormal()
             self.resize(
                 int(
                     self.status["screen_height"]
                     * (2 / 3)
-                    * self.camera_config["resolution_X"]
-                    / (self.camera_config["resolution_Y"] + 66)
+                    * self.video_config["resolution_X"]
+                    / (self.video_config["resolution_Y"] + 66)
                 ),
                 int(self.status["screen_height"] * (2 / 3)),
             )
             self.showMaximized()
         else:
             self.showNormal()
-            self.resize(self.camera_config["resolution_X"], self.camera_config["resolution_Y"] + 66)
+            self.resize(self.video_config["resolution_X"], self.video_config["resolution_Y"] + 66)
             if center:
                 qr = self.frameGeometry()
                 cp = QGuiApplication.primaryScreen().availableGeometry().center()
                 qr.moveCenter(cp)
                 self.move(qr.topLeft())
-        if self.camera_config["keep_aspect_ratio"]:
+        if self.video_config["keep_aspect_ratio"]:
             self.videoWidget.setAspectRatioMode(Qt.KeepAspectRatio)
         else:
             self.videoWidget.setAspectRatioMode(Qt.IgnoreAspectRatio)
 
     def keep_ratio_func(self):
-        self.camera_config["keep_aspect_ratio"] = not self.camera_config["keep_aspect_ratio"]
-        if self.camera_config["keep_aspect_ratio"]:
+        self.video_config["keep_aspect_ratio"] = not self.video_config["keep_aspect_ratio"]
+        if self.video_config["keep_aspect_ratio"]:
             self.videoWidget.setAspectRatioMode(Qt.KeepAspectRatio)
             self.set_font_bold(self.actionKeep_ratio, True)
         else:
@@ -832,7 +984,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.set_font_bold(self.actionKeep_ratio, False)
         if not self.status["fullscreen"]:
             self.resize(self.width(), self.height() + 1)
-        self.statusBar().showMessage("Keep aspect ratio: " + str(self.camera_config["keep_aspect_ratio"]))
+        self.statusBar().showMessage("Keep aspect ratio: " + str(self.video_config["keep_aspect_ratio"]))
         self.save_config()
 
     # 最小化窗口
@@ -1223,6 +1375,17 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.set_font_bold(self.actionQuick_paste, self.status["quick_paste"])
         self.statusBar().showMessage("Quick paste (Ctrl+Shift+Alt+V): " + str(self.status["quick_paste"]))
 
+    def system_hook_func(self):
+        self.hook_state = not self.hook_state
+        self.set_font_bold(self.actionSystem_hook, self.hook_state)
+        self.statusBar().showMessage("System hook: " + str(self.hook_state))
+        if self.hook_state:
+            self.pythoncom_timer.start(500)
+            self.hook_manager.HookKeyboard()
+        else:
+            self.hook_manager.UnhookKeyboard()
+            self.pythoncom_timer.stop()
+
     # 粘贴板
     def paste_board_func(self):
         addheight = 0
@@ -1271,7 +1434,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             loop.exec()
 
     def send_char(self, c):
-        CLICK_INTERVAL = self.paste_board_dialog.spinBox_ci.value()
         char_buffer = [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         shift = False
         if c == "\n":
@@ -1296,7 +1458,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         hidinfo = hid_def.hid_report(char_buffer)
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
-        self.qt_sleep(CLICK_INTERVAL)
+            return 1
+        self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
+        return 0
 
     def paste_board_stop(self):
         self.paste_board_stop_flag = True
@@ -1489,16 +1653,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def dark_theme_func(self):
         self.config["dark_theme"] = not dark_theme
         self.save_config()
-        # apply at next start
         info = QMessageBox(self)
         info.setWindowTitle("Dark theme")
-        info.setText(f"Dark theme change will be applied at next start\nRestart now?")
+        info.setText(f"Theme change will take affect at next start")
         info.Ok = info.addButton("OK", QMessageBox.AcceptRole)
-        info.Cancel = info.addButton("Cancel", QMessageBox.RejectRole)
-        ret = info.exec()
-        if ret == QMessageBox.AcceptRole:
-            self.close()
-            os.startfile(sys.argv[0])
+        info.exec()
 
     def mouseButton_to_int(self, s: Qt.MouseButton):
         if s == Qt.LeftButton:
@@ -1614,15 +1773,15 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             # x_pos = self.disconnect_label.pos().x()
             y_pos = self.disconnect_label.pos().y()
         else:
-            x_res = self.camera_config["resolution_X"]
-            y_res = self.camera_config["resolution_Y"]
+            x_res = self.video_config["resolution_X"]
+            y_res = self.video_config["resolution_Y"]
             width = self.videoWidget.width()
             height = self.videoWidget.height()
             # x_pos = self.camerafinder.pos().x()
             y_pos = self.videoWidget.pos().y()
         x_diff = 0
         y_diff = 0
-        if self.camera_config["keep_aspect_ratio"]:
+        if self.video_config["keep_aspect_ratio"]:
             cam_scale = y_res / x_res
             finder_scale = height / width
             if finder_scale > cam_scale:
@@ -1659,6 +1818,17 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         0x015C: 128,  # Right GUI
     }
 
+    hid_to_b2 = {
+        0xE0: 1,  # Left Control
+        0xE1: 2,  # Left Shift
+        0xE2: 4,  # Left Alt
+        0xE3: 8,  # Left GUI
+        0xE4: 16,  # Right Control
+        0xE5: 32,  # Right Shift
+        0xE6: 64,  # Right Alt
+        0xE7: 128,  # Right GUI
+    }
+
     def update_kb(self, scancode: int, state: bool):
         if state:
             if scancode in self.scan_to_b2:
@@ -1693,7 +1863,36 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         hidinfo = hid_def.hid_report(kb_buffer)
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
-            return 1
+            return hidinfo
+        return 0
+
+    def update_kb_hid(self, hid: int, state: bool):
+        if state:
+            if hid in self.hid_to_b2:
+                kb_buffer[2] |= self.hid_to_b2[hid]
+            else:
+                for i in range(4, 10):
+                    if kb_buffer[i] == hid:
+                        return
+                    if kb_buffer[i] == 0:
+                        kb_buffer[i] = hid
+                        break
+                else:
+                    print("Buffer overflow")
+        else:
+            if hid in self.hid_to_b2:
+                kb_buffer[2] &= ~self.hid_to_b2[hid]
+            else:
+                for i in range(4, 10):
+                    if kb_buffer[i] == hid:
+                        kb_buffer[i] = 0
+                        break
+                else:
+                    print("Key not found in buffer")
+        hidinfo = hid_def.hid_report(kb_buffer)
+        if hidinfo == 1 or hidinfo == 4:
+            self.device_event_handle("hid_error")
+            return hidinfo
         return 0
 
     def update_kb_hid(self, hid: int, state: bool):
@@ -1725,13 +1924,15 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if event.isAutoRepeat():
             return
-        scancode = event.nativeScanCode()
         # Ctrl+Alt+Shift+F11 退出全屏
         if kb_buffer[2] == 7 and event.key() == self.fullscreen_key:
             self.fullscreen_func()
             return
+        self.keyPress(event.nativeScanCode())
+
+    def keyPress(self, scancode: int):
         # Ctrl+Alt+Shift+V quick paste
-        if kb_buffer[2] == 7 and event.key() == Qt.Key_V and self.status["quick_paste"]:
+        if kb_buffer[2] == 7 and scancode == 0x002F and self.status["quick_paste"]:
             # 获取剪贴板内容
             clipboard = QApplication.clipboard()
             text = clipboard.text()
@@ -1755,7 +1956,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if self.ignore_event:
             return
-        scancode = event.nativeScanCode()
+        self.keyRelease(event.nativeScanCode())
+
+    def keyRelease(self, scancode: int):
         self.update_kb(scancode, False)
         self.shortcut_status(kb_buffer)
 
@@ -1789,10 +1992,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 QMessageBox.warning(self, "Warning", "Invalid device")
                 return
             self.server.config["video"]["quality"] = self.kvmSetQualitySpin.value()
-            self.server.config["video"]["fps"] = self.kvmSetFpsSpin.value()
+            # self.server.config["video"]["fps"] = self.kvmSetFpsSpin.value()
             width, height = self.kvmSetResCombo.currentText().split("x")
             self.server.config["video"]["width"] = int(width)
             self.server.config["video"]["height"] = int(height)
+            self.server.command_callback = self.server_command_callback
             try:
                 host = self.kvmSetHostLine.text()
                 port = self.kvmSetPortSpin.value()
@@ -1826,6 +2030,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             box.setText(f"Authentication is disabled")
             box.b1 = box.addButton("Enable", QMessageBox.ActionRole)
         box.b2 = box.addButton("Add User", QMessageBox.ActionRole)
+        box.b3 = box.addButton("Cancel", QMessageBox.RejectRole)
         box.exec()
         if box.clickedButton() == box.b1:
             self.server.auth_required = not self.server.auth_required
@@ -1846,7 +2051,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.kvmSetDeviceCombo.clear()
         cameras = QMediaDevices.videoInputs()
         devices = []
-        rmbd = self.camera_config["device_name"]
+        rmbd = self.video_config["device_name"]
         for camera in cameras:
             self.kvmSetDeviceCombo.addItem(camera.description())
             devices.append(camera.description())
@@ -1893,7 +2098,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     QMessageBox.No,
                 )
                 if ret == QMessageBox.Yes:
-                    self.set_webcam(False)
+                    self.set_device(False)
                 else:
                     return
             self.takeCentralWidget()
@@ -1926,8 +2131,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     @Slot()
     def on_btnServerOpenBrowser_clicked(self):
-        if not self.server.running:
-            return
         url = f"http://127.0.0.1:{self.kvmSetPortSpin.value()}"
         QDesktopServices.openUrl(QUrl(url))
 
@@ -1935,24 +2138,86 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.serverLogEdit.setText(text)
         self.serverLogEdit.moveCursor(QTextCursor.End)
 
+    def mouse_wheel_act(self):
+        if self.mouse_scroll_timer.isActive():
+            self.mouse_scroll_timer.stop()
+        self.mouse_scroll_timer.start(100)
 
-def error_log(msg):
-    with open("error.log", "a") as f:
-        f.write(f"Error Occurred at {datetime.datetime.now()}:\n")
-        f.write(f"{msg}\n")
+    def server_command_callback(self, data_type, data_payload):
+        global mouse_buffer, kb_buffer
+        if data_type == "mouse_wheel":
+            if data_payload[0] > 0:
+                mouse_buffer[7] = 0x01
+            elif data_payload[0] < 0:
+                mouse_buffer[7] = 0xFF
+            else:
+                mouse_buffer[7] = 0
+            hidinfo = hid_def.hid_report(mouse_buffer)
+            self._wheel_signal.emit()
+        elif data_type == "mouse_btn":
+            if data_payload[1] == 2:
+                mouse_buffer[2] |= data_payload[0]
+            elif data_payload[1] == 3:
+                mouse_buffer[2] &= ~data_payload[0]
+            else:
+                mouse_buffer = [2, 0, 0, 0, 0, 0, 0, 0, 0]
+            hidinfo = hid_def.hid_report(mouse_buffer)
+        elif data_type == "mouse_pos":
+            x, y = int(data_payload[0]) & 0x0FFF, int(data_payload[1]) & 0x0FFF
+            mouse_buffer[3] = x & 0xFF
+            mouse_buffer[4] = x >> 8
+            mouse_buffer[5] = y & 0xFF
+            mouse_buffer[6] = y >> 8
+            hidinfo = hid_def.hid_report(mouse_buffer)
+        elif data_type == "keyboard":
+            state = data_payload[1]
+            key = data_payload[0]
+            if state == 3:  # release all
+                kb_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                hidinfo = hid_def.hid_report(kb_buffer)
+            else:
+                self.update_kb_hid(key, state == 1)
+                hidinfo = 0
+        else:
+            print(f"Unknown data type: {data_type}")
+            return
+        if hidinfo == 1 or hidinfo == 4:
+            self.device_event_handle("hid_error")
+
+    def focusInEvent(self, event):
+        if self.hook_state:
+            print("focusInEvent")
+            self.pythoncom_timer.start(500)
+            self.hook_manager.HookKeyboard()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event):
+        if self.hook_state:
+            print("focusOutEvent")
+            self.hook_manager.UnhookKeyboard()
+            self.pythoncom_timer.stop()
+        super().focusOutEvent(event)
 
 
-if __name__ == "__main__":
+def clear_splash():
+    if "NUITKA_ONEFILE_PARENT" in os.environ:
+        splash_filename = os.path.join(
+            tempfile.gettempdir(),
+            "onefile_%d_splash_feedback.tmp" % int(os.environ["NUITKA_ONEFILE_PARENT"]),
+        )
+        if os.path.exists(splash_filename):
+            os.unlink(splash_filename)
+
+
+def main():
     app = QApplication(sys.argv)
     myWin = MyMainWindow()
     qdarktheme.setup_theme(theme="dark" if dark_theme else "light")
     myWin.show()
     QTimer.singleShot(100, myWin.shortcut_status)
-    try:
-        ret = app.exec()
-    except Exception as e:
-        import traceback
+    clear_splash()
+    sys.exit(app.exec())
 
-        error_log(traceback.format_exc())
-        ret = 1
-    sys.exit(ret)
+
+if __name__ == "__main__":
+    main()

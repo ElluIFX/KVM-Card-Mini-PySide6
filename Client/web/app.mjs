@@ -19,15 +19,15 @@ new Vue({
     pasteContent: '',
     screenWidth: 0,
     screenHeight: 0,
-    screenFps: 0,
     screenQuality: 0,
+    showFps: false,
     mouseSpeed: 15,
     keyAltPressed: false,
     keyCtrlPressed: false,
     toolbarVisible: true,
     set_width: 0,
     set_height: 0,
-    set_fps: 0,
+    set_show_fps: false,
     set_quality: 0,
     set_mouse_speed: 0,
     isSeqSending: false,
@@ -60,11 +60,11 @@ new Vue({
         }
         this.screenWidth = config.video.width;
         this.screenHeight = config.video.height;
-        this.screenFps = config.video.fps;
         this.screenQuality = config.video.quality;
+        this.showFps = config.video.show_fps;
         this.set_width = config.video.width;
         this.set_height = config.video.height;
-        this.set_fps = config.video.fps;
+        this.set_show_fps = config.video.show_fps;
         this.set_quality = config.video.quality;
         this.set_mouse_speed = this.mouseSpeed;
       } catch (e) {
@@ -97,9 +97,8 @@ new Vue({
     },
     async applySettings() {
       try {
-        // send config to /config?res=AAxBB&fps=XX&quality=XX
         this.mouseSpeed = this.set_mouse_speed;
-        let resAddr = `/config?res=${this.set_width}x${this.set_height}&fps=${this.set_fps}&quality=${this.set_quality}`;
+        let resAddr = `/config?res=${this.set_width}x${this.set_height}&show_fps=${this.set_show_fps}&quality=${this.set_quality}`;
         if (this.secret) {
           resAddr += `&s=${this.secret}`;
         }
@@ -108,13 +107,12 @@ new Vue({
           const config = await res.json();
           this.screenWidth = config.video.width;
           this.screenHeight = config.video.height;
-          this.screenFps = config.video.fps;
           this.screenQuality = config.video.quality;
+          this.showFps = config.video.show_fps;
           this.set_width = config.video.width;
           this.set_height = config.video.height;
-          this.set_fps = config.video.fps;
+          this.set_show_fps = config.video.show_fps;
           this.set_quality = config.video.quality;
-          console.info('Apply settings success\nNew config: ' + this.set_width + 'x' + this.set_height + ' ' + this.set_fps + 'fps ' + this.set_quality + ' quality');
         } else {
           alert('Apply config failed');
         }
@@ -125,7 +123,7 @@ new Vue({
     cancelSettings() {
       this.set_width = this.screenWidth;
       this.set_height = this.screenHeight;
-      this.set_fps = this.screenFps;
+      this.set_show_fps = this.showFps;
       this.set_quality = this.screenQuality;
       this.set_mouse_speed = this.mouseSpeed;
     },

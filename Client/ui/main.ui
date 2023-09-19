@@ -10,6 +10,9 @@
     <height>582</height>
    </rect>
   </property>
+  <property name="focusPolicy">
+   <enum>Qt::StrongFocus</enum>
+  </property>
   <property name="windowTitle">
    <string>USB KVM Client</string>
   </property>
@@ -444,6 +447,8 @@
     <addaction name="actionPaste_board"/>
     <addaction name="actionQuick_paste"/>
     <addaction name="separator"/>
+    <addaction name="actionSystem_hook"/>
+    <addaction name="separator"/>
     <addaction name="actionIndicator_light"/>
     <addaction name="actionNum_Keyboard"/>
    </widget>
@@ -769,6 +774,11 @@
   <action name="actionOpen_Server_Manager">
    <property name="text">
     <string>Open Server Manager</string>
+   </property>
+  </action>
+  <action name="actionSystem_hook">
+   <property name="text">
+    <string>System hook</string>
    </property>
   </action>
  </widget>
