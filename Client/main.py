@@ -10,7 +10,9 @@ from typing import List, Tuple, Union
 import hid_def
 import pythoncom
 import pyWinhook as pyHook
+import server_simple
 import yaml  # type: ignore
+from default import default_config
 from loguru import logger
 from PySide6 import *
 from PySide6.QtCore import *
@@ -80,6 +82,7 @@ if sys.argv[-1] != "debug":
     logger.add(
         fake_std,
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} - {level} - {name} - {message}",  #:{function}:{line}
+        level="INFO",
     )
 else:
     hid_def.set_verbose(True)
@@ -133,9 +136,9 @@ def load_icon(name, dark_override=None) -> QIcon:
     else:
         judge = dark_theme
     if judge:
-        return QIcon(f"{PATH}/ui/images/24_dark/{name}.png")
+        return QIcon(f"{PATH}/icons/24_dark/{name}.png")
     else:
-        return QIcon(f"{PATH}/ui/images/24_light/{name}.png")
+        return QIcon(f"{PATH}/icons/24_light/{name}.png")
 
 
 def load_pixmap(name, dark_override=None) -> QPixmap:
@@ -144,9 +147,9 @@ def load_pixmap(name, dark_override=None) -> QPixmap:
     else:
         judge = dark_theme
     if judge:
-        return QPixmap(f"{PATH}/ui/images/24_dark/{name}.png")
+        return QPixmap(f"{PATH}/icons/24_dark/{name}.png")
     else:
-        return QPixmap(f"{PATH}/ui/images/24_light/{name}.png")
+        return QPixmap(f"{PATH}/icons/24_light/{name}.png")
 
 
 class MyPushButton(QPushButton):
@@ -201,7 +204,6 @@ class MyNumKeyboardDialog(QDialog, numboard_ui.Ui_Dialog):
 
 
 class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
-    _disconnect_signal = Signal()
     _log_signal = Signal(str)
     _wheel_signal = Signal()
 
@@ -250,13 +252,16 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             )
         # 导入外部数据
         try:
-            with open(os.path.join(ARGV_PATH, "data", "keyboard_hid2code.yaml"), "r") as load_f:
+            with open(os.path.join(PATH, "data", "keyboard_hid2code.yaml"), "r") as load_f:
                 self.keyboard_hid2code = yaml.safe_load(load_f)
-            with open(os.path.join(ARGV_PATH, "data", "keyboard_scancode2hid.yml"), "r") as load_f:
+            with open(os.path.join(PATH, "data", "keyboard_scancode2hid.yml"), "r") as load_f:
                 self.keyboard_scancode2hid = yaml.safe_load(load_f)
-            with open(os.path.join(ARGV_PATH, "data", "keyboard.yaml"), "r") as load_f:
+            with open(os.path.join(PATH, "data", "keyboard.yaml"), "r") as load_f:
                 self.keyboard_code = yaml.safe_load(load_f)
-            with open(os.path.join(ARGV_PATH, "data", "config.yaml"), "r") as load_f:
+            if not os.path.exists(os.path.join(ARGV_PATH, "config.yaml")):
+                with open(os.path.join(ARGV_PATH, "config.yaml"), "w") as f:
+                    f.write(default_config)
+            with open(os.path.join(ARGV_PATH, "config.yaml"), "r") as load_f:
                 self.configfile = yaml.safe_load(load_f)
             self.config = self.configfile["config"]
             self.video_record_config = self.configfile["video_record_config"]
@@ -265,7 +270,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.fullscreen_key = getattr(Qt, f'Key_{self.config["fullscreen_key"]}')
         except Exception as e:
             QMessageBox.critical(
-                self, "Error", f"Import data error:\n {e}\n\nCheck the folder ./data and restart the program"
+                self,
+                "Error",
+                f"Import config error:\n {e}\n\nCheck the config.yaml and restart the program\nor delete the config.yaml to reset the config file.",
             )
             sys.exit(1)
         # 加载配置文件
@@ -291,7 +298,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.status["screen_width"] = self.desktop.availableGeometry().width()
 
         # 窗口图标
-        self.setWindowIcon(QIcon(f"{PATH}/ui/images/icon.ico"))
+        self.setWindowIcon(QIcon(f"{PATH}/icons/icon.ico"))
         self.device_setup_dialog.setWindowIcon(load_icon("import", False))
         self.shortcut_key_dialog.setWindowIcon(load_icon("keyboard-settings-outline", False))
         self.paste_board_dialog.setWindowIcon(load_icon("paste", False))
@@ -323,10 +330,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_btn2 = MyPushButton()
         self.statusbar_btn3 = MyPushButton()
         self.statusbar_btn4 = MyPushButton()
+        self.statusbar_btn5 = MyPushButton()
         self.statusbar_btn1.setPixmap(load_pixmap("keyboard-settings-outline"))
         self.statusbar_btn2.setPixmap(load_pixmap("paste"))
         self.statusbar_btn3.setPixmap(load_pixmap("capslock"))
         self.statusbar_btn4.setPixmap(load_pixmap("numkey"))
+        self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
 
         self.statusbar_icon1 = MyPushButton()
         self.statusbar_icon2 = MyPushButton()
@@ -344,6 +353,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusBar().addPermanentWidget(self.statusbar_btn2)
         self.statusBar().addPermanentWidget(self.statusbar_btn3)
         self.statusBar().addPermanentWidget(self.statusbar_btn4)
+        self.statusBar().addPermanentWidget(self.statusbar_btn5)
         self.statusBar().addPermanentWidget(self.statusbar_icon1)
         self.statusBar().addPermanentWidget(self.statusbar_icon2)
         self.statusBar().addPermanentWidget(self.statusbar_icon3)
@@ -352,9 +362,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_btn2.clicked.connect(lambda: self.statusbar_func(2))
         self.statusbar_btn3.clicked.connect(lambda: self.statusbar_func(3))
         self.statusbar_btn4.clicked.connect(lambda: self.statusbar_func(4))
-        self.statusbar_icon1.clicked.connect(lambda: self.statusbar_func(5))
-        self.statusbar_icon2.clicked.connect(lambda: self.statusbar_func(6))
-        self.statusbar_icon3.clicked.connect(lambda: self.statusbar_func(7))
+        self.statusbar_btn5.clicked.connect(lambda: self.statusbar_func(5))
+        self.statusbar_icon1.clicked.connect(lambda: self.statusbar_func(6))
+        self.statusbar_icon2.clicked.connect(lambda: self.statusbar_func(7))
+        self.statusbar_icon3.clicked.connect(lambda: self.statusbar_func(8))
 
         # 菜单栏图标
         self.action_video_devices.setIcon(load_icon("import"))
@@ -391,6 +402,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionNum_Keyboard.setIcon(load_icon("numkey"))
         self.actionOpen_Server_Manager.setIcon(load_icon("server"))
         self.actionSystem_hook.setIcon(load_icon("hook"))
+        self.actionRefresh_device_list.setIcon(load_icon("reload"))
+        self.actionWeb_client.setIcon(load_icon("web"))
 
         if self.video_config["keep_aspect_ratio"]:
             self.set_font_bold(self.actionKeep_ratio, True)
@@ -459,6 +472,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionWindows_Device_Manager.triggered.connect(lambda: self.menu_tools_actions(5))
 
         self.actionOpen_Server_Manager.triggered.connect(self.open_server_manager)
+        self.actionRefresh_device_list.triggered.connect(self.refresh_server_device_list)
+        self.actionWeb_client.triggered.connect(self.open_web_client)
 
         self.actionDark_theme.triggered.connect(self.dark_theme_func)
         self.actionRGB.triggered.connect(self.RGB_func)
@@ -479,6 +494,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_btn2.setFocusPolicy(Qt.NoFocus)
         self.statusbar_btn3.setFocusPolicy(Qt.NoFocus)
         self.statusbar_btn4.setFocusPolicy(Qt.NoFocus)
+        self.statusbar_btn5.setFocusPolicy(Qt.NoFocus)
         self.statusbar_icon1.setFocusPolicy(Qt.NoFocus)
         self.statusbar_icon2.setFocusPolicy(Qt.NoFocus)
         self.statusbar_icon3.setFocusPolicy(Qt.NoFocus)
@@ -495,7 +511,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.check_device_timer = QTimer()
         self.check_device_timer.timeout.connect(self.check_device_status)
         self.check_device_timer.start(1000)
-        self._disconnect_signal.connect(lambda: self.check_device_status(camera=False))
 
         self.reset_keymouse(4)
 
@@ -507,6 +522,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self._log_signal.connect(self.set_log_text)
         fake_std.callback = self._log_signal.emit
         self.server = KVM_Server(parent=self)
+        self.server_simple_started = False
         self._wheel_signal.connect(self.mouse_wheel_act)
 
         self.hook_state = False
@@ -531,7 +547,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     }
 
     def hook_keyboard_down_event(self, event):
-        print(f"Hook: {event.Key} {event.ScanCode}")
+        logger.debug(f"Hook: {event.Key} {event.ScanCode}")
         if event.Key in self.code_remap:
             scan_code = self.code_remap[event.Key]
         else:
@@ -575,10 +591,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             else:
                 self.num_keyboard_func()
         elif act == 5:
-            self.device_config()
+            self.system_hook_func()
         elif act == 6:
-            self.reset_keymouse(4)
+            self.device_config()
         elif act == 7:
+            self.reset_keymouse(4)
+        elif act == 8:
             if self.status["mouse_capture"]:
                 self.release_mouse()
                 self.statusBar().showMessage("Mouse capture off")
@@ -699,14 +717,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         except:
             self.video_alert("Selected invalid device")
             return
-        print(self.video_config)
+        logger.debug(self.video_config)
         try:
             self.set_device(True, center=True)
             self.video_config["auto_connect"] = self.device_setup_dialog.checkBoxAutoConnect.isChecked()
             self.audio_config["audio_support"] = self.device_setup_dialog.checkBoxAudio.isChecked()
             self.save_config()
         except Exception as e:
-            print(e)
+            logger.error(e)
 
     # 获取采集卡分辨率
     def update_device_info(self):
@@ -719,7 +737,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     self.camera_info = camera
                     break
             else:
-                print("Target video device not found")
+                logger.error("Target video device not found")
                 self.camera_info = None
                 return
         else:
@@ -739,6 +757,16 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             if fmt_str not in fmt_list:
                 fmt_list.append(fmt_str)
                 self.device_setup_dialog.comboBox_3.addItem(fmt_str)
+
+    def camera_error_occurred(self, error, string):
+        logger.error(f"Camera error: {error}")
+        self.video_alert(f"Video device error: {error}")
+        # self.set_device(False, force_stop=True)
+
+    def frame_changed(self, frame: QVideoFrame):
+        # self.image = frame.toImage()
+        # self.image_event.set()
+        pass
 
     # 初始化指定配置视频设备
     def setup_device(self):
@@ -797,9 +825,16 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.video_alert("Video device connect failed")
             return False
 
+        self.camera.errorOccurred.connect(self.camera_error_occurred)
+
         self.capture_session = QMediaCaptureSession()
         self.capture_session.setCamera(self.camera)
-        self.capture_session.setVideoOutput(self.videoWidget)
+        # self.capture_session.setVideoOutput(self.videoWidget)
+        self.capture_session.setVideoSink(self.videoWidget.videoSink())
+        # self.video_sink = QVideoSink()
+        # self.video_sink.videoFrameChanged.connect(self.frame_changed)
+        # self.video_sink.setVideoFrame(self.videoWidget)
+        # self.capture_session.setVideoSink(self.video_sink)
 
         self.image_capture = QImageCapture(self.camera)
         self.capture_session.setImageCapture(self.image_capture)
@@ -832,7 +867,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             # self.video_record.setAudioBitRate(16)
             # self.video_record.setAudioSampleRate(48000)
             # self.video_record.record()
-            print("Audio device ok")
+            logger.debug("Audio device ok")
         return True
 
     # 保存当前帧到文件
@@ -840,7 +875,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if not self.camera_opened:
             return
         self.image_capture.capture()
-        print("capture_to_file ok")
+        logger.debug("capture_to_file ok")
 
     def record_video(self):
         if not self.camera_opened:
@@ -868,7 +903,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.statusBar().showMessage("Video recording stopped")
 
     def image_captured(self, id, preview):
-        print("image_captured", id)
+        logger.debug("image_captured", id)
         file_name = QFileDialog.getSaveFileName(
             self,
             "Save Frame",
@@ -886,11 +921,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         err.setText(s)
         err.exec()
         self.device_event_handle("video_error")
-        print(s)
-        print(err)
+        logger.error(s)
 
     # 启用和禁用视频设备
-    def set_device(self, state, center=False):
+    def set_device(self, state, center=False, force_stop=False):
         if self.serverFrame.isVisible():
             QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
             return False
@@ -910,7 +944,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             )
         else:
             if self.camera_opened:
-                self.camera.stop()
+                if not force_stop:
+                    self.camera.stop()
                 self.device_event_handle("video_close")
                 self.takeCentralWidget()
                 self.setCentralWidget(self.disconnect_label)
@@ -1050,7 +1085,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 idx = len(self.configfile["shortcut_key"]["shortcut_key_name"])
                 self.configfile["shortcut_key"]["shortcut_key_name"].append(text)
                 self.configfile["shortcut_key"]["shortcut_key_hidcode"].append([_ for _ in self.shortcut_buffer])
-                print(f"save {text}={self.shortcut_buffer}")
+                logger.debug(f"save {text}={self.shortcut_buffer}")
                 action = self.menuShortcut_key.addAction(text)
                 action.triggered.connect(lambda: self.shortcut_key_action(idx))
                 self.save_config()
@@ -1137,14 +1172,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             try:
                 mapcode = self.keyboard_code[keysequence.upper()]
             except Exception as e:
-                print(e)
-                print("Hid query error")
+                logger.error(f"Hid query error")
                 return
-
-            if not mapcode:
-                print("Hid query error")
-            else:
-                self.shortcut_buffer[4] = int(mapcode, 16)  # 功能位
+            self.shortcut_buffer[4] = int(mapcode, 16)  # 功能位
 
         if self.shortcut_key_dialog.pushButton_ctrl.isChecked() and s == 1:
             self.shortcut_buffer[2] = self.shortcut_buffer[2] | 1
@@ -1290,7 +1320,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if reply == 1 or reply == 2 or reply == 3 or reply == 4:
             self.device_event_handle("hid_error")
             self.indicator_timer.stop()
-            print("hid error")
             return
         if reply[0] != 3:
             self.statusBar().showMessage("Indicator reply error")
@@ -1367,7 +1396,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         hidinfo = hid_def.hid_report([5, 0, r, g, b, 0])
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
-            print("hid error")
             return
 
     def quick_paste_func(self):
@@ -1380,11 +1408,13 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.set_font_bold(self.actionSystem_hook, self.hook_state)
         self.statusBar().showMessage("System hook: " + str(self.hook_state))
         if self.hook_state:
-            self.pythoncom_timer.start(500)
+            self.pythoncom_timer.start(5)
             self.hook_manager.HookKeyboard()
+            self.statusbar_btn5.setPixmap(load_pixmap("hook"))
         else:
             self.hook_manager.UnhookKeyboard()
             self.pythoncom_timer.stop()
+            self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
 
     # 粘贴板
     def paste_board_func(self):
@@ -1421,7 +1451,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.paste_board_dialog.hide()
         file_path = QFileDialog.getOpenFileName(self, "Select file", "", "All Files(*.*)")[0]
         self.paste_board_dialog.show()
-        print(file_path)
         if os.path.isfile(file_path):
             file_size_kb = os.path.getsize(file_path) / 1024
             self.paste_board_file_path = file_path
@@ -1433,8 +1462,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             QTimer.singleShot(t, loop.quit)
             loop.exec()
 
+    last_char = None
+    char_idx = 0
+
     def send_char(self, c):
-        char_buffer = [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        char_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         shift = False
         if c == "\n":
             mapcode = self.keyboard_code["ENTER"]
@@ -1449,13 +1481,22 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 if cq.isupper():
                     shift = True
             except KeyError:
-                # print("Key not found:", c)
-                return
+                return 2
         mapcode = int(mapcode, 16)
-        char_buffer[4] = mapcode
+        if self.last_char == c:
+            self.char_idx = (self.char_idx + 1) % 5
+        else:
+            self.char_idx = 0
+        self.last_char = c
+        char_buffer[self.char_idx + 4] = mapcode
         if c in shift_symbol or shift:
             char_buffer[2] |= 2
         hidinfo = hid_def.hid_report(char_buffer)
+        if hidinfo == 1 or hidinfo == 4:
+            self.device_event_handle("hid_error")
+            return 1
+        self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
+        hidinfo = hid_def.hid_report([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
             return 1
@@ -1469,7 +1510,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if text is None:
             idx = self.paste_board_dialog.tabWidget.currentIndex() + 1
             if idx == 10:
-                print("paste_board_file_send call")
                 self.paste_board_file_send()
                 return
             if idx > 9:
@@ -1479,7 +1519,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         total = len(text)
         if total == 0:
             return
-        print("paste_board_send start")
         self.paste_board_dialog.pushButtonSend.setEnabled(False)
         self.ignore_event = True
         self.paste_board_stop_flag = False
@@ -1496,7 +1535,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.paste_board_dialog.setWindowTitle("Paste board - Finished")
         self.paste_board_dialog.pushButtonSend.setEnabled(True)
         self.ignore_event = False
-        print("paste_board_send end")
 
     def paste_board_file_send(self):
         if self.paste_board_file_path is None:
@@ -1516,16 +1554,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             data = f.read()
         data = data.hex()
         if echo_only:
-            temp = ""
-            for j, c in enumerate(data):
-                if j % 2 == 0:
-                    temp += "\\x"
-                temp += c
-            data = temp
+            data = "\\x".join([data[i : i + 2] for i in range(0, len(data), 2)])
+            data = "\\x" + data
         total = len(data)
         if total == 0:
             return
-        print("paste_board_file_send start")
         self.paste_board_dialog.setWindowTitle(f"Paste board - Sending file")
         self.paste_board_dialog.pushButtonSend.setEnabled(False)
         self.ignore_event = True
@@ -1541,11 +1574,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 cmd = CMD_HEAD + part + CMD_TAIL0
             else:
                 cmd = CMD_HEAD + part + CMD_TAIL1
-            # print(cmd)
             cnt += len(part)
-            print(i, cnt, total)
-            self.paste_board_dialog.progressBar.setValue(int(i / total * 100))
-            for c in cmd:
+            print(f"\rSend: {i} {cnt} {total}         ", end="")
+            now = int(i / total * 100)
+            next = int((i + PACKGE_SIZE) / total * 100)
+            next = min(next, 100)
+            self.paste_board_dialog.progressBar.setValue(now)
+            cmd_len = len(cmd)
+            for j, c in enumerate(cmd):
                 if self.send_char(c) == 1:
                     self.paste_board_dialog.setWindowTitle("Paste board - Error occurred")
                     error = True
@@ -1554,6 +1590,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     self.paste_board_dialog.setWindowTitle("Paste board - Force stopped")
                     error = True
                     break
+                self.paste_board_dialog.progressBar.setValue(round(now + (next - now) * j / cmd_len))
             if error:
                 break
             self.qt_sleep(PACKGE_WAIT)
@@ -1562,7 +1599,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.paste_board_dialog.progressBar.setValue(100)
         self.paste_board_dialog.pushButtonSend.setEnabled(True)
         self.ignore_event = False
-        print("paste_board_file_send end")
 
     # 三个Lock键
     def lock_key_func(self, key):
@@ -1642,12 +1678,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             if self.status is None:
                 return
         except AttributeError:
-            print("status Variable not initialized")
+            logger.debug("status Variable not initialized")
         except Exception as e:
-            print(e)
+            logger.error(e)
         else:
             if not self.isActiveWindow() and self.status["init_ok"]:  # 窗口失去焦点时重置键盘，防止卡键
-                # print("window not active")
                 self.reset_keymouse(1)
 
     def dark_theme_func(self):
@@ -1836,7 +1871,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             else:
                 scancode2hid = self.keyboard_scancode2hid.get(scancode, 0)
                 if scancode2hid == 0:
-                    print(f"scancode2hid not found: {scancode}")
+                    if scancode != 256:
+                        logger.error(f"scancode2hid not found: {scancode}")
                     return
                 for i in range(4, 10):
                     if kb_buffer[i] == scancode2hid:
@@ -1845,21 +1881,24 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                         kb_buffer[i] = scancode2hid
                         break
                 else:
-                    print("Buffer overflow")
+                    logger.error("Buffer overflow")
         else:
             if scancode in self.scan_to_b2:
                 kb_buffer[2] &= ~self.scan_to_b2[scancode]
             else:
                 scancode2hid = self.keyboard_scancode2hid.get(scancode, 0)
                 if scancode2hid == 0:
-                    print(f"scancode2hid not found: {scancode}")
+                    if scancode != 256:
+                        logger.error(f"scancode2hid not found: {scancode}")
                     return
                 for i in range(4, 10):
                     if kb_buffer[i] == scancode2hid:
                         kb_buffer[i] = 0
                         break
                 else:
-                    print("Key not found in buffer")
+                    logger.error("Key not found in buffer")
+        if not self.device_connected:
+            return 0
         hidinfo = hid_def.hid_report(kb_buffer)
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
@@ -1878,7 +1917,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                         kb_buffer[i] = hid
                         break
                 else:
-                    print("Buffer overflow")
+                    logger.error("Buffer overflow")
         else:
             if hid in self.hid_to_b2:
                 kb_buffer[2] &= ~self.hid_to_b2[hid]
@@ -1888,7 +1927,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                         kb_buffer[i] = 0
                         break
                 else:
-                    print("Key not found in buffer")
+                    logger.error("Key not found in buffer")
         hidinfo = hid_def.hid_report(kb_buffer)
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
@@ -1904,14 +1943,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     kb_buffer[i] = hid
                     break
             else:
-                print("Buffer overflow")
+                logger.error("Buffer overflow")
         else:
             for i in range(4, 10):
                 if kb_buffer[i] == hid:
                     kb_buffer[i] = 0
                     break
             else:
-                print("Key not found in buffer")
+                logger.error("Key not found in buffer")
         hidinfo = hid_def.hid_report(kb_buffer)
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
@@ -1973,6 +2012,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.indicator_dialog.close()
         if self.numkeyboard_dialog.isVisible():
             self.numkeyboard_dialog.close()
+        # if self.server.running:
+        #     self.server.stop_server()
         return super().closeEvent(event)
 
     @Slot()
@@ -1984,7 +2025,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.kvmSetPortSpin.setEnabled(True)
             self.kvmSetHostLine.setEnabled(True)
             self.kvmSetQualitySpin.setEnabled(True)
-            self.kvmSetFpsSpin.setEnabled(True)
+            self.kvmSetFormatCombo.setEnabled(True)
             self.kvmSetDeviceCombo.setEnabled(True)
             self.kvmSetResCombo.setEnabled(True)
         else:
@@ -1992,10 +2033,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 QMessageBox.warning(self, "Warning", "Invalid device")
                 return
             self.server.config["video"]["quality"] = self.kvmSetQualitySpin.value()
-            # self.server.config["video"]["fps"] = self.kvmSetFpsSpin.value()
             width, height = self.kvmSetResCombo.currentText().split("x")
             self.server.config["video"]["width"] = int(width)
             self.server.config["video"]["height"] = int(height)
+            self.server.config["video"]["format"] = self.kvmSetFormatCombo.currentText()
             self.server.command_callback = self.server_command_callback
             try:
                 host = self.kvmSetHostLine.text()
@@ -2007,13 +2048,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 )
             except Exception as e:
                 self.server.running = False
-                logger.exception(f"Server start failed")
+                logger.error(f"Server start failed: {e}")
+                QMessageBox.warning(self, "Warning", f"Server start failed: {e}")
                 return
             self.btnServerSwitch.setIcon(load_icon("Pause"))
             self.kvmSetPortSpin.setEnabled(False)
             self.kvmSetHostLine.setEnabled(False)
             self.kvmSetQualitySpin.setEnabled(False)
-            self.kvmSetFpsSpin.setEnabled(False)
+            self.kvmSetFormatCombo.setEnabled(False)
             self.kvmSetDeviceCombo.setEnabled(False)
             self.kvmSetResCombo.setEnabled(False)
             logger.info(f"Server hosting on {host}:{port}")
@@ -2063,6 +2105,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def update_server_device_info(self):
         self.kvmSetResCombo.clear()
+        self.kvmSetFormatCombo.clear()
         selected = self.kvmSetDeviceCombo.currentText()
         cameras = QMediaDevices.videoInputs()
         for camera in cameras:
@@ -2072,20 +2115,21 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         else:
             return
         res_list = []
-        max_fps = 0
-        min_fps = 999
+        fmt_list = []
         for i in camera_info.videoFormats():
             resolutions_str = f"{i.resolution().width()}x{i.resolution().height()}"
             if resolutions_str not in res_list:
                 res_list.append(resolutions_str)
                 self.kvmSetResCombo.addItem(resolutions_str)
-            if i.maxFrameRate() > max_fps:
-                max_fps = i.maxFrameRate()
-            if i.minFrameRate() < min_fps:
-                min_fps = i.minFrameRate()
-        self.kvmSetFpsSpin.setMaximum(max_fps)
-        self.kvmSetFpsSpin.setMinimum(min_fps)
-        self.kvmSetFpsSpin.setValue(max_fps)
+            fmt = i.pixelFormat().name.split("_")[1]
+            if fmt not in fmt_list:
+                fmt_list.append(fmt)
+                self.kvmSetFormatCombo.addItem(fmt)
+        if camera_info.description() == self.video_config["device_name"]:
+            self.kvmSetResCombo.setCurrentText(
+                f"{self.video_config['resolution_X']}x{self.video_config['resolution_Y']}"
+            )
+            self.kvmSetFormatCombo.setCurrentText(self.video_config["format"])
 
     def open_server_manager(self):
         if not self.serverFrame.isVisible():
@@ -2134,6 +2178,34 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         url = f"http://127.0.0.1:{self.kvmSetPortSpin.value()}"
         QDesktopServices.openUrl(QUrl(url))
 
+    def open_web_client(self):
+        if not self.serverFrame.isVisible():
+            if self.camera_opened:
+                ret = QMessageBox.warning(
+                    self,
+                    "Warning",
+                    "Video device is opened, close it first?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if ret == QMessageBox.Yes:
+                    self.set_device(False)
+        if self.server.running:
+            ret = QMessageBox.warning(
+                self,
+                "Warning",
+                "Server is running, stop it?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if ret == QMessageBox.Yes:
+                self.on_btnServerSwitch_clicked()
+        if not self.server_simple_started:
+            self.server_simple_port = server_simple.start_server()
+            self.server_simple_started = True
+        url = f"http://127.0.0.1:{self.server_simple_port}"
+        QDesktopServices.openUrl(QUrl(url))
+
     def set_log_text(self, text):
         self.serverLogEdit.setText(text)
         self.serverLogEdit.moveCursor(QTextCursor.End)
@@ -2145,6 +2217,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def server_command_callback(self, data_type, data_payload):
         global mouse_buffer, kb_buffer
+        if data_type == "reset_mcu":
+            self.reset_keymouse(2)
+        elif data_type == "reset_hid":
+            self.reset_keymouse(4)
+        if not self.device_connected:
+            return
         if data_type == "mouse_wheel":
             if data_payload[0] > 0:
                 mouse_buffer[7] = 0x01
@@ -2163,7 +2241,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 mouse_buffer = [2, 0, 0, 0, 0, 0, 0, 0, 0]
             hidinfo = hid_def.hid_report(mouse_buffer)
         elif data_type == "mouse_pos":
-            x, y = int(data_payload[0]) & 0x0FFF, int(data_payload[1]) & 0x0FFF
+            x, y = int(data_payload[0]) & 0x7FFF, int(data_payload[1]) & 0x7FFF
             mouse_buffer[3] = x & 0xFF
             mouse_buffer[4] = x >> 8
             mouse_buffer[5] = y & 0xFF
@@ -2178,24 +2256,28 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             else:
                 self.update_kb_hid(key, state == 1)
                 hidinfo = 0
+        elif data_type == "paste":
+            logger.debug(f"Received {len(data_payload)} bytes paste data")
+            if not self.ignore_event:
+                self.paste_board_send(data_payload)
+            hidinfo = 0
         else:
-            print(f"Unknown data type: {data_type}")
             return
         if hidinfo == 1 or hidinfo == 4:
             self.device_event_handle("hid_error")
 
     def focusInEvent(self, event):
         if self.hook_state:
-            print("focusInEvent")
-            self.pythoncom_timer.start(500)
+            self.pythoncom_timer.start(5)
             self.hook_manager.HookKeyboard()
+            self.statusbar_btn5.setPixmap(load_pixmap("hook"))
         super().focusInEvent(event)
 
     def focusOutEvent(self, event):
         if self.hook_state:
-            print("focusOutEvent")
             self.hook_manager.UnhookKeyboard()
             self.pythoncom_timer.stop()
+            self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
         super().focusOutEvent(event)
 
 

@@ -137,6 +137,10 @@ class Ui_MainWindow(object):
         self.actionOpen_Server_Manager.setObjectName(u"actionOpen_Server_Manager")
         self.actionSystem_hook = QAction(MainWindow)
         self.actionSystem_hook.setObjectName(u"actionSystem_hook")
+        self.actionRefresh_device_list = QAction(MainWindow)
+        self.actionRefresh_device_list.setObjectName(u"actionRefresh_device_list")
+        self.actionWeb_client = QAction(MainWindow)
+        self.actionWeb_client.setObjectName(u"actionWeb_client")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.serverFrame = QFrame(self.centralwidget)
@@ -206,7 +210,7 @@ class Ui_MainWindow(object):
         self.kvmSetQualitySpin = QSpinBox(self.serverSettingFrame)
         self.kvmSetQualitySpin.setObjectName(u"kvmSetQualitySpin")
         self.kvmSetQualitySpin.setMaximum(100)
-        self.kvmSetQualitySpin.setValue(60)
+        self.kvmSetQualitySpin.setValue(95)
 
         self.verticalLayout_2.addWidget(self.kvmSetQualitySpin)
 
@@ -249,12 +253,10 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_4.addWidget(self.kvmSetResCombo)
 
-        self.kvmSetFpsSpin = QSpinBox(self.serverSettingFrame)
-        self.kvmSetFpsSpin.setObjectName(u"kvmSetFpsSpin")
-        self.kvmSetFpsSpin.setMaximum(60)
-        self.kvmSetFpsSpin.setValue(60)
+        self.kvmSetFormatCombo = QComboBox(self.serverSettingFrame)
+        self.kvmSetFormatCombo.setObjectName(u"kvmSetFormatCombo")
 
-        self.verticalLayout_4.addWidget(self.kvmSetFpsSpin)
+        self.verticalLayout_4.addWidget(self.kvmSetFormatCombo)
 
 
         self.horizontalLayout.addLayout(self.verticalLayout_4)
@@ -394,6 +396,9 @@ class Ui_MainWindow(object):
         self.menuVideo.addAction(self.actionCapture_frame)
         self.menuVideo.addAction(self.actionRecord_video)
         self.menuServer.addAction(self.actionOpen_Server_Manager)
+        self.menuServer.addAction(self.actionRefresh_device_list)
+        self.menuServer.addSeparator()
+        self.menuServer.addAction(self.actionWeb_client)
 
         self.retranslateUi(MainWindow)
 
@@ -439,7 +444,7 @@ class Ui_MainWindow(object):
         self.actionNotepad.setText(QCoreApplication.translate("MainWindow", u"Notepad", None))
         self.actionIndicator_light.setText(QCoreApplication.translate("MainWindow", u"Indicator light", None))
         self.actionReload_MCU.setText(QCoreApplication.translate("MainWindow", u"Reload MCU", None))
-        self.action_fullscreen.setText(QCoreApplication.translate("MainWindow", u"Full screen", None))
+        self.action_fullscreen.setText(QCoreApplication.translate("MainWindow", u"Fullscreen", None))
         self.action_Resize_window.setText(QCoreApplication.translate("MainWindow", u"Resize window", None))
         self.actionKeep_ratio.setText(QCoreApplication.translate("MainWindow", u"Keep aspect ratio", None))
         self.actionKeep_on_top.setText(QCoreApplication.translate("MainWindow", u"Always on top", None))
@@ -458,6 +463,8 @@ class Ui_MainWindow(object):
         self.actionRecord_video.setText(QCoreApplication.translate("MainWindow", u"Record video", None))
         self.actionOpen_Server_Manager.setText(QCoreApplication.translate("MainWindow", u"Open Server Manager", None))
         self.actionSystem_hook.setText(QCoreApplication.translate("MainWindow", u"System hook", None))
+        self.actionRefresh_device_list.setText(QCoreApplication.translate("MainWindow", u"Refresh device list", None))
+        self.actionWeb_client.setText(QCoreApplication.translate("MainWindow", u"Web client", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"KVM Server Settings", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Host:", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port:", None))
@@ -465,7 +472,7 @@ class Ui_MainWindow(object):
         self.kvmSetHostLine.setText(QCoreApplication.translate("MainWindow", u"0.0.0.0", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Video device:", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Resolution:", None))
-        self.label_7.setText(QCoreApplication.translate("MainWindow", u"FPS(prefer):", None))
+        self.label_7.setText(QCoreApplication.translate("MainWindow", u"Format:", None))
         self.btnServerSwitch.setText("")
         self.btnServerSetAuth.setText("")
         self.btnServerOpenBrowser.setText("")

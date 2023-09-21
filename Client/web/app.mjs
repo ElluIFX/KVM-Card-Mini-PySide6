@@ -7,7 +7,7 @@ new Vue({
   data: {
     serviceHost: location.hostname,
     port: location.port || 80,
-    secret: location.search.replace('?s=', ''),
+    secret: '',
     streamSrc: '',
     $channel: null,
     isKeyCaptureActive: false,
@@ -20,23 +20,27 @@ new Vue({
     screenWidth: 0,
     screenHeight: 0,
     screenQuality: 0,
+    screenFormat: '',
     showFps: false,
     mouseSpeed: 15,
     keyAltPressed: false,
     keyCtrlPressed: false,
     toolbarVisible: true,
-    set_width: 0,
-    set_height: 0,
+    avail_res: ['None',],
+    set_res: 'None',
+    avail_fmt: ['None',],
+    set_fmt: 'None',
     set_show_fps: false,
     set_quality: 0,
     set_mouse_speed: 0,
-    isSeqSending: false,
   },
   mounted() {
     this.init();
   },
   methods: {
     async init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      this.secret = urlParams.get('s') || '';
       if (this.secret) {
         console.debug('Secret: ' + this.secret);
       }
@@ -48,9 +52,11 @@ new Vue({
         if (!streamOk) {
           alert('Video stream seems not ready, check terminal for more info.');
         }
-        this.$channel = await ws.init(
-          `ws://${this.serviceHost}:${this.port}/websocket`
-        );
+        let wsAddr = `ws://${this.serviceHost}:${this.port}/websocket`;
+        if (this.secret) {
+          wsAddr += `?s=${this.secret}`;
+        }
+        this.$channel = await ws.init(wsAddr);
         this.bindKeyHandler();
         this.bindMouseHandler();
 
@@ -61,9 +67,12 @@ new Vue({
         this.screenWidth = config.video.width;
         this.screenHeight = config.video.height;
         this.screenQuality = config.video.quality;
+        this.screenFormat = config.video.format;
         this.showFps = config.video.show_fps;
-        this.set_width = config.video.width;
-        this.set_height = config.video.height;
+        this.set_res = `${config.video.width}x${config.video.height}`;
+        this.avail_res = config.video.avail_res;
+        this.avail_fmt = config.video.avail_fmt;
+        this.set_fmt = config.video.format;
         this.set_show_fps = config.video.show_fps;
         this.set_quality = config.video.quality;
         this.set_mouse_speed = this.mouseSpeed;
@@ -98,7 +107,7 @@ new Vue({
     async applySettings() {
       try {
         this.mouseSpeed = this.set_mouse_speed;
-        let resAddr = `/config?res=${this.set_width}x${this.set_height}&show_fps=${this.set_show_fps}&quality=${this.set_quality}`;
+        let resAddr = `/config?res=${this.set_res}&fmt=${this.set_fmt}&show_fps=${this.set_show_fps}&quality=${this.set_quality}`;
         if (this.secret) {
           resAddr += `&s=${this.secret}`;
         }
@@ -108,11 +117,15 @@ new Vue({
           this.screenWidth = config.video.width;
           this.screenHeight = config.video.height;
           this.screenQuality = config.video.quality;
+          this.screenFormat = config.video.format;
           this.showFps = config.video.show_fps;
-          this.set_width = config.video.width;
-          this.set_height = config.video.height;
+          this.set_res = `${config.video.width}x${config.video.height}`;
+          this.avail_res = config.video.avail_res;
+          this.avail_fmt = config.video.avail_fmt;
+          this.set_fmt = config.video.format;
           this.set_show_fps = config.video.show_fps;
           this.set_quality = config.video.quality;
+          this.screenFormat = config.video.format;
         } else {
           alert('Apply config failed');
         }
@@ -121,11 +134,11 @@ new Vue({
       }
     },
     cancelSettings() {
-      this.set_width = this.screenWidth;
-      this.set_height = this.screenHeight;
       this.set_show_fps = this.showFps;
       this.set_quality = this.screenQuality;
       this.set_mouse_speed = this.mouseSpeed;
+      this.set_res = `${this.screenWidth}x${this.screenHeight}`;
+      this.set_fmt = this.screenFormat;
     },
     bindKeyHandler() {
       document.addEventListener('keydown', (evt) => {
@@ -320,13 +333,8 @@ new Vue({
       mouse.sendEvent(this.$channel, evt.wheelDeltaY, 'wheel');
     },
     async doRemotePaste() {
-      if (this.isSeqSending) {
-        return;
-      }
-      this.isSeqSending = true;
-      await kb.sendSequence(this.$channel, this.pasteContent);
+      kb.sendSequence(this.$channel, this.pasteContent);
       this.pasteContent = '';
-      this.isSeqSending = false;
     },
     setDialog(name) {
       if (name) {
@@ -337,5 +345,20 @@ new Vue({
         this.activeDialog = '';
       }
     },
+    toggleFullscreen() {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        document.documentElement.requestFullscreen();
+      }
+    }, resetDevice() {
+      let payload = new Array(2);
+      payload.fill(0);
+      const msg = {
+        type: 'reset_hid',
+        payload
+      };
+      this.$channel.send(JSON.stringify(msg));
+    }
   },
 });

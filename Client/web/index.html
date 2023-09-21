@@ -39,6 +39,8 @@
             title="Keyboard Indicator"></span>
           <span @click="setDialog('paste')" class="button bi-clipboard-data" title="Remote Paste (ASCII Only)"></span>
           <span @click="setDialog('settings')" class="button bi-gear" title="Settings"></span>
+          <span @click="resetDevice()" class="button bi-arrow-clockwise" title="Reset Device"></span>
+          <span @click="toggleFullscreen()" class="button bi-fullscreen" title="Fullscreen"></span>
           <span @click="setDialog('help')" class="button bi-question-circle" title="Help"></span>
         </div>
 
@@ -77,38 +79,35 @@
           <ul class="auto">
             <li>
               Resolution:
-              <ul>
-                <li>
-                  <label>
-                    Width:
-                    <input type="number" name="width" min="640" max="1920" step="1" v-model="set_width">
-                  </label>
-                </li>
-                <li>
-                  <label>
-                    Height:
-                    <input type="number" name="height" min="480" max="1080" step="1" v-model="set_height">
-                  </label>
-                </li>
-              </ul>
+              <!-- combo box from avail_res, selected in set_res -->
+              <select v-model="set_res">
+                <option v-for="option in avail_res" :value="option" v-text="option"></option>
+              </select>
+            </li>
+            <li>
+              Format:
+              <!-- combo box from avail_res, selected in set_res -->
+              <select v-model="set_fmt">
+                <option v-for="option in avail_fmt" :value="option" v-text="option"></option>
+              </select>
+            </li>
+            <li>
+              Quality (0: PNG, 1-100: JPEG):
+              <label>
+                <input type="number" name="quality" min="0" max="100" step="5" v-model="set_quality">
+              </label>
             </li>
             <li>
               Show FPS Counter:
-                  <label>
-                    <input type="checkbox" name="show_fps" v-model="set_show_fps">
-                  </label>
-            </li>
-            <li>
-              Quality:
-                  <label>
-                    <input type="number" name="quality" min="10" max="100" step="5" v-model="set_quality">
-                  </label>
+              <label>
+                <input type="checkbox" name="show_fps" v-model="set_show_fps">
+              </label>
             </li>
             <li>
               Mouse Speed (hide cursor mode):
-                  <label>
-                    <input type="number" name="mouse_speed" min="1" max="100" step="1" v-model="set_mouse_speed">
-                  </label>
+              <label>
+                <input type="number" name="mouse_speed" min="1" max="100" step="1" v-model="set_mouse_speed">
+              </label>
             </li>
           </ul>
           <div class="dialog-footer">

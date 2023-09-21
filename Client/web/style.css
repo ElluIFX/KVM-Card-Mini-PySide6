@@ -39,9 +39,9 @@ body, html {
   display: flex;
   font-size: 12px;
   text-align: center;
-  min-width: 240px;
+  min-width: 300px;
   position: fixed;
-  left: calc(50vw - 120px);
+  left: calc(50vw - 155px);
   top: 12px;
 
   padding: 4px 8px;
@@ -64,6 +64,7 @@ body, html {
 .indicator.active {
   color: #14c941;
 }
+
 
 .dialog {
   line-height: 1.8;

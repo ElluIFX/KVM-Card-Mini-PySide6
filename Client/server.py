@@ -58,12 +58,15 @@ class InterceptHandler(logging.Handler):
 logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
 kvm_default_config = {
-    "web_title": "KVM Web Control Interface",
+    "web_title": "KVM Remote Control Interface",
     "video": {
-        "width": 1280,
-        "height": 720,
+        "width": 1920,
+        "height": 1080,
         "quality": 60,
-        "show_fps": True,
+        "format": "NV12",
+        "show_fps": False,
+        "avail_res": [],
+        "avail_fmt": [],
     },
 }
 
@@ -201,6 +204,9 @@ class KVM_Server(QObject):
         return send_from_directory("web", path)
 
     def websocket(self, sock):
+        if self.auth_required:
+            if not check_auth_secret():
+                return redirect(url_for("login", r="websocket"))
         while True:
             data = sock.receive()
             if data:
@@ -218,6 +224,9 @@ class KVM_Server(QObject):
     def register_command_callback(self, callback):
         self.command_callback = callback
 
+    def camera_error_occurred(self, error, string):
+        logger.error(f"Camera error: {error}")
+
     def open_camera(self, device_name):
         if self.camera_opened:
             return True, ""
@@ -228,20 +237,30 @@ class KVM_Server(QObject):
                 break
         else:
             return False, f"Camera {device_name} not found"
+        self.config["video"]["avail_res"] = []
+        self.config["video"]["avail_fmt"] = []
+        fmt = None
         for i in self.camera_info.videoFormats():
+            f = i.pixelFormat().name.split("_")[1]
             if (
                 i.resolution().width() == self.config["video"]["width"]
                 and i.resolution().height() == self.config["video"]["height"]
+                and f == self.config["video"]["format"]
             ):
                 fmt = i
-                break
-        else:
+            res = f"{i.resolution().width()}x{i.resolution().height()}"
+            if res not in self.config["video"]["avail_res"]:
+                self.config["video"]["avail_res"].append(res)
+            if f not in self.config["video"]["avail_fmt"]:
+                self.config["video"]["avail_fmt"].append(f)
+        if fmt is None:
             return (
                 False,
                 f"Camera {device_name} does not support {self.config['video']['width']}x{self.config['video']['height']}",
             )
         self.camera = QCamera(self.camera_info)
         self.camera.setCameraFormat(fmt)
+        self.camera.errorOccurred.connect(self.camera_error_occurred)
 
         self.capture_session = QMediaCaptureSession()
         self.capture_session.setCamera(self.camera)
@@ -283,20 +302,18 @@ class KVM_Server(QObject):
                 painter = QPainter(image)
                 painter.setPen(QPen(Qt.red))
                 painter.setFont(QFont("Arial", 20))
-                painter.drawText(10, 30, f"{fpc.get():.6f}fps")
+                painter.drawText(10, 30, f"{fpc.get():.3f}")
                 painter.end()
             else:
                 image = self.image
             self.ba1.clear()
             self.buffer1.seek(0)
-            if self.config["video"]["quality"] != 100:
+            if self.config["video"]["quality"] != 0:
                 image.save(self.buffer1, "jpg", self.config["video"]["quality"])
+                yield (b"Content-Type: data/jpeg\r\n\r\n" + bytes(self.buffer1.data()) + b"\r\n\r\n--frame\r\n")
             else:
                 image.save(self.buffer1, "png")
-            if self.config["video"]["quality"] == 100:
                 yield (b"Content-Type: data/png\r\n\r\n" + bytes(self.buffer1.data()) + b"\r\n\r\n--frame\r\n")
-            else:
-                yield (b"Content-Type: data/jpeg\r\n\r\n" + bytes(self.buffer1.data()) + b"\r\n\r\n--frame\r\n")
 
     def get_snapshot(self):
         self.image_event.wait()
@@ -323,25 +340,33 @@ class KVM_Server(QObject):
             if not check_auth_secret():
                 return redirect(url_for("login", r="http_config", **request.args))
         res = request.args.get("res", None)
+        fmt = request.args.get("fmt", None)
         show_fps = request.args.get("show_fps", None)
         quality = request.args.get("quality", None)
         if not any([res, show_fps, quality]):
             return jsonify(self.config)
-        if res is not None:
+        if (
+            res is not None
+            and fmt is not None
+            and (
+                res != f"{self.config['video']['width']}x{self.config['video']['height']}"
+                or fmt != self.config["video"]["format"]
+            )
+        ):
             video_width = int(res.split("x")[0])
             video_height = int(res.split("x")[1])
+            cfmt = None
             for i in self.camera_info.videoFormats():
-                if i.resolution().width() == video_width and i.resolution().height() == video_height:
-                    fmt = i
-                    break
-            else:
-                fmt = None
-            if fmt is not None:
+                f = i.pixelFormat().name.split("_")[1]
+                if i.resolution().width() == video_width and i.resolution().height() == video_height and f == fmt:
+                    cfmt = i
+            if cfmt is not None:
                 self.camera.stop()
-                self.camera.setCameraFormat(fmt)
+                self.camera.setCameraFormat(cfmt)
                 self.camera.start()
                 self.config["video"]["width"] = video_width
                 self.config["video"]["height"] = video_height
+                self.config["video"]["format"] = fmt
         if show_fps is not None:
             self.config["video"]["show_fps"] = (
                 show_fps == "true" or show_fps == "1" or show_fps == "True" or show_fps is True
@@ -351,7 +376,7 @@ class KVM_Server(QObject):
             video_quality = max(0, min(100, video_quality))
             self.config["video"]["quality"] = video_quality
         logger.info(
-            f'New config set: {self.config["video"]["width"]}x{self.config["video"]["height"]}, quality={self.config["video"]["quality"]}, show_fps={self.config["video"]["show_fps"]}'
+            f'New config set: {self.config["video"]["width"]}x{self.config["video"]["height"]}, quality={self.config["video"]["quality"]}, show_fps={self.config["video"]["show_fps"]}, format={self.config["video"]["format"]}'
         )
         return jsonify(self.config)
 
@@ -385,5 +410,5 @@ if __name__ == "__main__":
     server = KVM_Server()
     add_auth_user("admin", "admin")
     server.auth_required = False
-    server.start_server("0.0.0.0", 5000, "USB Video")
+    server.start_server("0.0.0.0", 80, "USB Video")
     qapp.exec()
