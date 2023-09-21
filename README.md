@@ -1,91 +1,15 @@
-# KVM-Card-Mini
+# forkKVM-Card-Mini
 
 ⌨️🖥️🖱️
 
-Simple KVM Console to USB 
+Simple KVM Console to USB
 
 一个简单的 KVM （Keyboard Video Mouse）设备控制卡，通过上位机程序控制被控设备的屏幕和键鼠
 
-## 功能特点
+## About
 
-- HID 协议传输，免驱动
-- 支持 BIOS 键盘控制
-- 上位机兼容非板载视频采集卡
-- 板载 USB-HUB 芯片，减少接口数量
-- 单 MCU 双 USB Device 控制器，降低传输延迟
-- 板载蓝牙天线、调试接口，可用于MCU开发
+**修改自 [Jackadminx/KVM-Card-Mini](https://github.com/Jackadminx/KVM-Card-Mini)**
 
-## 硬件分析
+增加主题/音频路由/录制/截图/内置远程服务器(魔改自Open-IP-KVM)/屏蔽系统键/剪贴板/无需系统支持的文件传输/特殊按键键盘等等功能, 迁移到PySide6以获得更好的nuitka支持, 优化了大量原版功能, 因为代码变动过大因此不对原项目PR
 
-![PCB](./Document/Images/PCB2.jpg)
-
-1. **USB Host Type-C 接口，连接至上位机（控制端）**
-2. **USB Host Type-C 接口，连接至被控端，控制键盘鼠标**
-3. **标准 HDMI 视频输入接口，连接至被控端视频输出**
-4. 蓝牙陶瓷天线（``能用但不完全能用，没有做阻抗匹配``；可选安装元器件）
-5. EEPROM 支持烧录夹烧录
-6. CH582F 调试接口，只支持 WCH-Link （可选安装元器件）
-7. CH582F 
-8. MS2109
-9. CH582F 复位按钮
-10. CH582F USB 烧录选择按钮
-11. WS2812B（可选安装元器件）
-12. SL2.1s
-13. ESD防护（可选安装元器件）
-
-## 上位机（控制端）
-
-![01](./Document/Images/01.png)
-
-![02](./Document/Images/02.png)
-
-
-
-- 实现屏幕显示，支持设备选择、切换输出分辨率
-- 被控端键盘控制、支持自定义快捷键，优化键盘功能逻辑
-- 被控端鼠标控制，优化鼠标捕获功能逻辑
-- 键盘指示灯显示
-- 重置 MCU 和重置 HID 连接功能
-
-## 固件刷入
-
-### CH582
-
-按住 BOOT 键同时使用USB数据线连接至电脑，然后使用 [WCHISPTool](https://www.wch.cn/downloads/WCHISPTool_Setup_exe.html) 刷入固件
-![03](./Document/Images/03.jpg)
-
-若不使用调试接口，则不需要开启两线仿真接口，即步骤6
-
-### MS2109
-
-配套的AT24C16 EEPROM可以直接买套片，或者用EEPROM编程器烧录。
-可以使用烧录夹在板子断电状态进行烧录。
-
-![04](./Document/Images/04.jpg)
-
-MS2109的固件来自 [Yuzuki HCC HDMI](https://oshwhub.com/gloomyghost/yuzuki-hcc) 项目，可通过HEX文件编辑器编辑固件实现修改设备名。
-
-## 实物图
-
-![IMG_2](./Document/Images/IMG_2.jpg)
-
-![IMG_1](./Document/Images/IMG_1.jpg)
-
-*嘉立创彩色丝印版本
-
-## 感谢
-
-https://oshwhub.com/gloomyghost/yuzuki-hcc
-
-https://materialdesignicons.com/icon/
-
-https://www.riverbankcomputing.com/software/pyqt/
-
-https://github.com/apmorton/pyhidapi
-
-https://www.mounriver.com/
-
-https://pro.lceda.cn/editor
-
-和其他开源或免费项目
-
+> 硬件无改动, 不支持原项目最新的usb切换功能(懒得再做一个了), 可以用文件发送功能代替
