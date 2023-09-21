@@ -610,7 +610,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def save_config(self):
         # 保存配置文件
-        with open(os.path.join(ARGV_PATH, "data", "config.yaml"), "w", encoding="utf-8") as f:
+        with open(os.path.join(ARGV_PATH, "config.yaml"), "w", encoding="utf-8") as f:
             yaml.dump(self.configfile, f)
 
     def audio_checkbox_switch(self):
