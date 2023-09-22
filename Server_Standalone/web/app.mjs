@@ -6,7 +6,8 @@ new Vue({
   el: '#app',
   data: {
     serviceHost: location.hostname,
-    port: location.port || 80,
+    port: location.port,
+    video_port: 0,
     secret: '',
     streamSrc: '',
     $channel: null,
@@ -21,7 +22,6 @@ new Vue({
     screenHeight: 0,
     screenQuality: 0,
     screenFormat: '',
-    screenFps: 0,
     showFps: false,
     mouseSpeed: 15,
     keyAltPressed: false,
@@ -32,7 +32,8 @@ new Vue({
     set_mouse_speed: 0,
     set_width: 0,
     set_height: 0,
-    set_fps: 0,
+    set_fmt: '',
+    avail_fmt: ["YUYV", "UYVY", "RGB565", "RGB24", "MJPEG", "JPEG"],
   },
   mounted() {
     this.init();
@@ -47,11 +48,14 @@ new Vue({
       try {
         const config = await this.fetchConfig();
         document.title = config.web_title;
+        this.video_port = config.port;
+        console.log('Video: ' + this.serviceHost + ":" + this.video_port)
+        this.streamSrc = `http://${this.serviceHost}:${this.video_port}/stream`;
 
-        const streamOk = await this.pingStream(this.port);
-        if (!streamOk) {
-          alert('Video stream seems not ready, check terminal for more info.');
-        }
+        // const streamOk = await this.pingStream(this.video_port);
+        // if (!streamOk) {
+        //   alert('Video stream seems not ready, check terminal for more info.');
+        // }
         let wsAddr = `ws://${this.serviceHost}:${this.port}/websocket`;
         if (this.secret) {
           wsAddr += `?s=${this.secret}`;
@@ -60,32 +64,22 @@ new Vue({
         this.bindKeyHandler();
         this.bindMouseHandler();
 
-        this.streamSrc = `http://${this.serviceHost}:${this.port}/stream`;
-        if (this.secret) {
-          this.streamSrc += `?s=${this.secret}`;
-        }
         this.screenWidth = config.video.width;
         this.screenHeight = config.video.height;
         this.screenQuality = config.video.quality;
         this.screenFormat = config.video.format;
-        this.screenFps = config.video.fps;
-        this.showFps = config.video.show_fps;
-        this.set_show_fps = config.video.show_fps;
-        this.set_quality = config.video.quality;
-        this.set_mouse_speed = this.mouseSpeed;
         this.set_width = config.video.width;
         this.set_height = config.video.height;
-        this.set_fps = config.video.fps;
+        this.set_quality = config.video.quality;
+        this.set_fmt = config.video.format;
+        this.set_mouse_speed = this.mouseSpeed;
       } catch (e) {
         alert(e.toString());
       }
     },
     async pingStream(port) {
       try {
-        let pingAddr = `http://${this.serviceHost}:${port}/snapshot`;
-        if (this.secret) {
-          pingAddr += `?s=${this.secret}`;
-        }
+        let pingAddr = `http://${this.serviceHost}:${port}`;
         const pingRes = await fetch(pingAddr);
         return pingRes.status === 200;
       } catch (e) {
@@ -107,24 +101,16 @@ new Vue({
     async applySettings() {
       try {
         this.mouseSpeed = this.set_mouse_speed;
-        let resAddr = `/config?width=${this.set_width}&height=${this.set_height}&fps=${this.set_fps}&show_fps=${this.set_show_fps}&quality=${this.set_quality}`;
+        let resAddr = `/config?width=${this.set_width}&height=${this.set_height}&quality=${this.set_quality}&format=${this.set_fmt}`;
         if (this.secret) {
           resAddr += `&s=${this.secret}`;
         }
         const res = await fetch(resAddr);
         if (res.status === 200) {
-          const config = await res.json();
-          this.screenWidth = config.video.width;
-          this.screenHeight = config.video.height;
-          this.screenQuality = config.video.quality;
-          this.screenFormat = config.video.format;
-          this.screenFps = config.video.fps;
-          this.showFps = config.video.show_fps;
-          this.set_show_fps = config.video.show_fps;
-          this.set_quality = config.video.quality;
-          this.set_width = config.video.width;
-          this.set_height = config.video.height;
-          this.set_fps = config.video.fps;
+          // reload window after 3s
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
         } else {
           alert('Apply config failed');
         }
@@ -133,12 +119,11 @@ new Vue({
       }
     },
     cancelSettings() {
-      this.set_show_fps = this.showFps;
-      this.set_quality = this.screenQuality;
       this.set_mouse_speed = this.mouseSpeed;
       this.set_width = this.screenWidth;
       this.set_height = this.screenHeight;
-      this.set_fps = this.screenFps;
+      this.set_quality = this.screenQuality;
+      this.set_fmt = this.screenFormat;
     },
     bindKeyHandler() {
       document.addEventListener('keydown', (evt) => {
@@ -250,51 +235,33 @@ new Vue({
       if (!this.isKeyCaptureActive) {
         return;
       }
-      // get absolute position
       this.mouseAbsPos[0] = evt.clientX;
       this.mouseAbsPos[1] = evt.clientY;
-      // get window size
       const winWidth = window.innerWidth;
       const winHeight = window.innerHeight;
-      // notice: screen is in the top of window
-      const screenRatio = this.screenWidth / this.screenHeight;
-      const winRatio = winWidth / winHeight;
-      // calc Y
-      if (winHeight > this.screenHeight) {
-        // black border on bottom
-        this.mouseAbsPos[1] = Math.floor(this.mouseAbsPos[1] / this.screenHeight * 0x7fff)
-        if (this.mouseAbsPos[1] > 0x7fff) {
-          this.mouseAbsPos[1] = 0x7fff
-        }
-      } else if (winRatio < screenRatio) {
-        // black border on bottom
-        const blackHeight = winHeight - winWidth / screenRatio
+      const imageWidth = this.$refs.live.clientWidth;
+      const imageHeight = this.$refs.live.clientHeight;
+      if (winHeight > imageHeight) {
+        const blackHeight = (winHeight - imageHeight) / 2
         if (this.mouseAbsPos[1] > winHeight - blackHeight) {
           this.mouseAbsPos[1] = winHeight - blackHeight
+        } else if (this.mouseAbsPos[1] < blackHeight) {
+          this.mouseAbsPos[1] = blackHeight
         }
-        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1]) / (winHeight - blackHeight) * 0x7fff)
+        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1] - blackHeight) / imageHeight * 0x7fff)
       } else {
-        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1]) / (winHeight) * 0x7fff)
+        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1]) / winHeight * 0x7fff)
       }
-      // calc X
-      if (winRatio > screenRatio) {
-        var blackWidth = 0
-        if (winHeight > this.screenHeight) {
-          blackWidth = winWidth - this.screenHeight * screenRatio
+      if (winWidth > imageWidth) {
+        const blackWidth = (winWidth - imageWidth) / 2
+        if (this.mouseAbsPos[0] > winWidth - blackWidth) {
+          this.mouseAbsPos[0] = winWidth - blackWidth
+        } else if (this.mouseAbsPos[0] < blackWidth) {
+          this.mouseAbsPos[0] = blackWidth
         }
-        else {
-          blackWidth = winWidth - winHeight * screenRatio
-        }
-        this.mouseAbsPos[0] -= blackWidth / 2
-        if (this.mouseAbsPos[0] < 0) {
-          this.mouseAbsPos[0] = 0
-        }
-        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0]) / (winWidth - blackWidth) * 0x7fff)
-        if (this.mouseAbsPos[0] > 0x7fff) {
-          this.mouseAbsPos[0] = 0x7fff
-        }
+        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0] - blackWidth) / imageWidth * 0x7fff)
       } else {
-        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0]) / (winWidth) * 0x7fff)
+        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0]) / winWidth * 0x7fff)
       }
 
       if (!this.isPointorLocked) {

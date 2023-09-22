@@ -5,7 +5,6 @@ from loguru import logger
 
 product_id = 0x2107
 vendor_id = 0x413D
-usage_page = 0xFF00
 
 DEBUG = False
 VERBOSE = False
@@ -25,9 +24,9 @@ h = hid.device()
 
 
 # 初始化HID设备
-def init_usb(vendor_id, usage_page):
+def init_usb():
     if DEBUG:
-        logger.debug(f"init_usb(vendor_id={vendor_id}, usage_page={usage_page})")
+        logger.debug(f"init_usb(vendor_id={vendor_id}, product_id={product_id})")
         return 0
     global h
     h = hid.device()
@@ -35,14 +34,12 @@ def init_usb(vendor_id, usage_page):
     hid_enumerate = hid.enumerate()
     device_path = 0
     for i in range(len(hid_enumerate)):
-        # if (hid_enumerate[i]['usage_page'] == usage_page and hid_enumerate[i]['vendor_id'] == vendor_id):
+        # logger.debug(f"Found device: {hid_enumerate[i]}")
         if (
-            hid_enumerate[i]["usage_page"] == usage_page
-            and hid_enumerate[i]["vendor_id"] == vendor_id
+            hid_enumerate[i]["vendor_id"] == vendor_id
             and hid_enumerate[i]["product_id"] == product_id
         ):
             device_path = hid_enumerate[i]["path"]
-            # print("Found target devicd:", hid_enumerate[i])
     if device_path == 0:
         logger.error("Device not found")
         return 1

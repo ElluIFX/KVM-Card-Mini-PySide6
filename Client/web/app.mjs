@@ -48,10 +48,10 @@ new Vue({
         const config = await this.fetchConfig();
         document.title = config.web_title;
 
-        const streamOk = await this.pingStream(this.port);
-        if (!streamOk) {
-          alert('Video stream seems not ready, check terminal for more info.');
-        }
+        // const streamOk = await this.pingStream(this.port);
+        // if (!streamOk) {
+        //   alert('Video stream seems not ready, check terminal for more info.');
+        // }
         let wsAddr = `ws://${this.serviceHost}:${this.port}/websocket`;
         if (this.secret) {
           wsAddr += `?s=${this.secret}`;
@@ -250,51 +250,34 @@ new Vue({
       if (!this.isKeyCaptureActive) {
         return;
       }
-      // get absolute position
       this.mouseAbsPos[0] = evt.clientX;
       this.mouseAbsPos[1] = evt.clientY;
-      // get window size
       const winWidth = window.innerWidth;
       const winHeight = window.innerHeight;
-      // notice: screen is in the top of window
-      const screenRatio = this.screenWidth / this.screenHeight;
-      const winRatio = winWidth / winHeight;
-      // calc Y
-      if (winHeight > this.screenHeight) {
-        // black border on bottom
-        this.mouseAbsPos[1] = Math.floor(this.mouseAbsPos[1] / this.screenHeight * 0x7fff)
-        if (this.mouseAbsPos[1] > 0x7fff) {
-          this.mouseAbsPos[1] = 0x7fff
-        }
-      } else if (winRatio < screenRatio) {
-        // black border on bottom
-        const blackHeight = winHeight - winWidth / screenRatio
+      const imageWidth = this.$refs.live.clientWidth;
+      const imageHeight = this.$refs.live.clientHeight;
+      // console.log("%d %d %d %d",winWidth,winHeight,imageWidth,imageHeight)
+      if (winHeight > imageHeight) {
+        const blackHeight = (winHeight - imageHeight) / 2
         if (this.mouseAbsPos[1] > winHeight - blackHeight) {
           this.mouseAbsPos[1] = winHeight - blackHeight
+        } else if (this.mouseAbsPos[1] < blackHeight) {
+          this.mouseAbsPos[1] = blackHeight
         }
-        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1]) / (winHeight - blackHeight) * 0x7fff)
+        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1] - blackHeight) / imageHeight * 0x7fff)
       } else {
-        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1]) / (winHeight) * 0x7fff)
+        this.mouseAbsPos[1] = Math.floor((this.mouseAbsPos[1]) / winHeight * 0x7fff)
       }
-      // calc X
-      if (winRatio > screenRatio) {
-        var blackWidth = 0
-        if (winHeight > this.screenHeight) {
-          blackWidth = winWidth - this.screenHeight * screenRatio
+      if (winWidth > imageWidth) {
+        const blackWidth = (winWidth - imageWidth) / 2
+        if (this.mouseAbsPos[0] > winWidth - blackWidth) {
+          this.mouseAbsPos[0] = winWidth - blackWidth
+        } else if (this.mouseAbsPos[0] < blackWidth) {
+          this.mouseAbsPos[0] = blackWidth
         }
-        else {
-          blackWidth = winWidth - winHeight * screenRatio
-        }
-        this.mouseAbsPos[0] -= blackWidth / 2
-        if (this.mouseAbsPos[0] < 0) {
-          this.mouseAbsPos[0] = 0
-        }
-        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0]) / (winWidth - blackWidth) * 0x7fff)
-        if (this.mouseAbsPos[0] > 0x7fff) {
-          this.mouseAbsPos[0] = 0x7fff
-        }
+        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0] - blackWidth) / imageWidth * 0x7fff)
       } else {
-        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0]) / (winWidth) * 0x7fff)
+        this.mouseAbsPos[0] = Math.floor((this.mouseAbsPos[0]) / winWidth * 0x7fff)
       }
 
       if (!this.isPointorLocked) {

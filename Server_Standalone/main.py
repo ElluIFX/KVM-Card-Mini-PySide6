@@ -1,42 +1,47 @@
 import argparse
 import os
+import subprocess
 import sys
 import time
 
 import hid_def
 import yaml
 from loguru import logger
-from server_cv2 import KVM_Server, add_auth_user, count_auth_users, list_video_devices
+from server_us import KVM_Server, add_auth_user
 
 arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("--host", default="0.0.0.0", help="Host IP (default: 0.0.0.0)")
-arg_parser.add_argument("--port", default=5000, type=int, help="Host Port (default: 5000)")
-arg_parser.add_argument("--device_no", default=-1, type=int, help="Device Number (0,1,2...)")
-arg_parser.add_argument("--device_name", default=None, type=str, help="Device Name")
-arg_parser.add_argument("--width", default=1920, type=int, help="Video Width (default: 1920)")
-arg_parser.add_argument("--height", default=1080, type=int, help="Video Height (default: 1080)")
-arg_parser.add_argument("--fps", default=30, type=int, help="Video FPS (default: 30)")
-arg_parser.add_argument("--quality", default=60, type=int, help="Video Quality (default: 60)")
+arg_parser.add_argument("-ht", "--host", default="0.0.0.0", help="Host IP (default: 0.0.0.0)")
+arg_parser.add_argument("-wp", "--web_port", default=5000, type=int, help="Web Interface Port (default: 5000)")
+arg_parser.add_argument("-vp", "--video_port", default=5001, type=int, help="Video Port (default: 5001)")
+arg_parser.add_argument("-d", "--device", default=None, type=str, help="Device Path")
+arg_parser.add_argument("-r", "--res", default="1920x1080", type=str, help="Video Resolution (default: 1280x720)")
+arg_parser.add_argument("-q", "--quality", default=60, type=int, help="Video Quality (default: 60)")
+arg_parser.add_argument(
+    "-f",
+    "--format",
+    default="MJPEG",
+    type=str,
+    choices=["YUYV", "UYVY", "RGB565", "RGB24", "MJPEG", "JPEG"],
+    help="Video Format (default: MJPG)",
+)
+arg_parser.add_argument(
+    "-e", "--encoder", default="CPU", type=str, choices=["CPU", "HW", "NOOP"], help="Video Encoder (default: CPU)"
+)
 arg_parser.add_argument(
     "--auth", default=None, type=str, help="HTTP Authentification (username:password) (default off)"
 )
+arg_parser.add_argument("--extra", default=None, type=str, help="Extra arguments passed to ustreamer")
 
 args = arg_parser.parse_args()
 
-if args.device_no < 0 and args.device_name is None:
-    arg_parser.print_help()
-    print("\nError: one of device_no and device_name must be set")
-    devices = list_video_devices()
-    if len(devices) == 0:
-        print("No video devices found")
-    else:
-        print("Found video devices(device_no: device_name):")
-        for id, name in devices:
-            print(f"  {id}: {name}")
-    sys.exit(1)
-
 if args.auth is not None:
     assert ":" in args.auth, "Authentification must be in format username:password"
+
+# check if ustreamer is installed
+cmd = "which ustreamer"
+if subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) != 0:
+    logger.error("ustreamer is not installed, try to install it with `sudo apt install ustreamer`")
+    sys.exit(1)
 
 kb_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mouse_buffer = [2, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -217,7 +222,7 @@ def server_command_callback(data_type, data_payload):
         logger.warning(f"HID Error {hidinfo}")
 
 
-hid_def.init_usb(hid_def.vendor_id, hid_def.usage_page)
+hid_def.init_usb()
 server = KVM_Server()
 server.command_callback = server_command_callback
 if args.auth is not None:
@@ -226,11 +231,4 @@ if args.auth is not None:
     add_auth_user(username, password)
     logger.info(f"Added auth user {username}")
     server.auth_required = True
-
-server.config["video"]["width"] = args.width
-server.config["video"]["height"] = args.height
-server.config["video"]["fps"] = args.fps
-server.config["video"]["quality"] = args.quality
-
-device = args.device_name if args.device_name is not None else args.device_no
-server.start_server(host=args.host, port=args.port, device=device, block=True)
+server.start_server(host=args.host, port=args.web_port, config= vars(args), block=True)

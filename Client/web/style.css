@@ -4,7 +4,7 @@ body, html {
   background: #000;
   font-family: "SF Pro Display", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
   font-size: 16px;
-  line-height: 1.8;
+  line-height: 0;
 }
 
 * {
@@ -26,6 +26,13 @@ body, html {
 
 .screen:focus {
   outline: none;
+}
+
+.wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
 .trans-bg {

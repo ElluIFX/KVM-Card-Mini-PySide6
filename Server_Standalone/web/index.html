@@ -26,11 +26,13 @@
     </script>
     <div id="app">
       <div v-show="streamSrc" style="display: none">
-
-        <img v-if="streamSrc" :src="streamSrc" @focus="onScreenFocus" @blur="onScreenBlur"
-          @mousemove="onScreenMouseMove" @mouseup="onScreenMouseUp" @mousedown="onScreenMouseDown"
-          @wheel="onScreenMouseWheel" class="screen" tabindex="1" />
-
+        <div class="wrapper">
+          <div ref="live">
+            <img v-if="streamSrc" :src="streamSrc" @focus="onScreenFocus" @blur="onScreenBlur"
+              @mousemove="onScreenMouseMove" @mouseup="onScreenMouseUp" @mousedown="onScreenMouseDown"
+              @wheel="onScreenMouseWheel" class="screen" tabindex="1" />
+          </div>
+        </div class="wrapper">
         <div v-show="toolbarVisible" class="float-zone trans-bg">
           <!-- <div>Open IP-KVM</div> -->
           <span class="indicator bi-mouse" style="font-size: 22px" :class="{active: isKeyCaptureActive}"
@@ -90,21 +92,15 @@
               </label>
             </li>
             <li>
-              FPS:
-              <label>
-                <input type="number" name="fps" min="5" max="120" step="5" v-model="set_fps">
-              </label>
+              Format:
+              <select v-model="set_fmt">
+                <option v-for="option in avail_fmt" :value="option" v-text="option"></option>
+              </select>
             </li>
             <li>
-              Quality (0: PNG, 1-100: JPEG):
+              Quality:
               <label>
                 <input type="number" name="quality" min="0" max="100" step="5" v-model="set_quality">
-              </label>
-            </li>
-            <li>
-              Show FPS Counter:
-              <label>
-                <input type="checkbox" name="show_fps" v-model="set_show_fps">
               </label>
             </li>
             <li>

@@ -26,11 +26,13 @@
     </script>
     <div id="app">
       <div v-show="streamSrc" style="display: none">
-
-        <img v-if="streamSrc" :src="streamSrc" @focus="onScreenFocus" @blur="onScreenBlur"
-          @mousemove="onScreenMouseMove" @mouseup="onScreenMouseUp" @mousedown="onScreenMouseDown"
-          @wheel="onScreenMouseWheel" class="screen" tabindex="1" />
-
+        <div class="wrapper">
+          <div ref="live">
+            <img v-if="streamSrc" :src="streamSrc" @focus="onScreenFocus" @blur="onScreenBlur"
+              @mousemove="onScreenMouseMove" @mouseup="onScreenMouseUp" @mousedown="onScreenMouseDown"
+              @wheel="onScreenMouseWheel" class="screen" tabindex="1" />
+          </div>
+        </div class="wrapper">
         <div v-show="toolbarVisible" class="float-zone trans-bg">
           <!-- <div>Open IP-KVM</div> -->
           <span class="indicator bi-mouse" style="font-size: 22px" :class="{active: isKeyCaptureActive}"
