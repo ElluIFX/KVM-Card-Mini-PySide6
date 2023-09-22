@@ -343,7 +343,7 @@ class KVM_Server(QObject):
         fmt = request.args.get("fmt", None)
         show_fps = request.args.get("show_fps", None)
         quality = request.args.get("quality", None)
-        if not any([res, show_fps, quality]):
+        if not any([res, show_fps, quality, fmt]):
             return jsonify(self.config)
         if (
             res is not None

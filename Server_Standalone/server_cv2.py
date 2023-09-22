@@ -57,8 +57,9 @@ logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 kvm_default_config = {
     "web_title": "KVM Web Control Interface",
     "video": {
-        "width": 1280,
-        "height": 720,
+        "width": 1920,
+        "height": 1080,
+        "show_fps": False,
         "fps": 60,
         "quality": 60,
     },
@@ -214,21 +215,24 @@ class KVM_Server(object):
     def register_command_callback(self, callback):
         self.command_callback = callback
 
-    def open_camera(self, device_name):
+    def open_camera(self, device):
         if self.camera_opened:
             return True, ""
-        devices = list_video_devices()
-        logger.info(f"Found video devices: {devices}")
-        if len(devices) == 0:
-            return False, "No video device found"
-        for id, name in devices:
-            if name == device_name:
-                video_device = id
-                break
-        else:
-            return False, f"Cannot find video device: {device_name}"
-        self.config["video"]["device"] = device_name
-        self.cap = cv2.VideoCapture(video_device)
+        if isinstance(device, str):
+            devices = list_video_devices()
+            logger.info(f"Found video devices: {devices}")
+            if len(devices) == 0:
+                return False, "No video device found"
+            for id, name in devices:
+                if name == device:
+                    video_device = id
+                    break
+            else:
+                return False, f"Cannot find video device: {device}"
+            self.cap = cv2.VideoCapture(video_device)
+        elif isinstance(device, int):
+            self.cap = cv2.VideoCapture(device)
+            video_device = device
         if not self.cap.isOpened():
             return False, f"Cannot open cv2 camera: {video_device}"
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config["video"]["width"])
@@ -255,7 +259,6 @@ class KVM_Server(object):
             ret, frame = self.cap.read()
             if not ret:
                 continue
-            cv2.putText(frame, f"{fpc.get():.6f}fps", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             self.image = frame
             self.image_event.set()
 
@@ -264,6 +267,8 @@ class KVM_Server(object):
             self.image_event.wait()
             self.image_event.clear()
             frame = self.image.copy()
+            if self.config["video"]["show_fps"]:
+                cv2.putText(frame, f"{fpc.get():.3f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             if self.config["video"]["quality"] == 100:
                 data = cv2.imencode(".png", frame)[1]
                 yield (b"Content-Type: data/png\r\n\r\n" + data.tobytes() + b"\r\n\r\n--frame\r\n")
@@ -295,16 +300,22 @@ class KVM_Server(object):
         if self.auth_required:
             if not check_auth_secret():
                 return redirect(url_for("login", r="http_config", **request.args))
-        res = request.args.get("res", None)
         fps = request.args.get("fps", None)
+        width = request.args.get("width", None)
+        height = request.args.get("height", None)
         quality = request.args.get("quality", None)
-        if not any([res, fps, quality]):
+        show_fps = request.args.get("show_fps", None)
+        if not any([width, height, fps, quality, show_fps]):
             return jsonify(self.config)
-        if res is not None:
-            video_width = int(res.split("x")[0])
-            video_height = int(res.split("x")[1])
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, video_width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, video_height)
+        if show_fps is not None:
+            self.config["video"]["show_fps"] = (
+                show_fps == "true" or show_fps == "1" or show_fps == "True" or show_fps is True
+            )
+        if all([width, height]):
+            width = int(width)
+            height = int(height)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         if fps is not None:
             video_fps = int(fps)
             self.cap.set(cv2.CAP_PROP_FPS, video_fps)
@@ -323,7 +334,7 @@ class KVM_Server(object):
         )
         return jsonify(self.config)
 
-    def start_server(self, host, port, device):
+    def start_server(self, host, port, device, block=False):
         """
         Start the server non-blocking
         """
@@ -336,8 +347,12 @@ class KVM_Server(object):
         self.stream_thread = th.Thread(target=self.stream_worker, daemon=True)
         self.stream_thread.start()
         self.server = make_server(host, port, app, threaded=True, processes=1)
-        self.server_thread = th.Thread(target=self.server.serve_forever, daemon=True)
-        self.server_thread.start()
+        self.server.log_startup()
+        if block:
+            self.server.serve_forever()
+        else:
+            self.server_thread = th.Thread(target=self.server.serve_forever, daemon=True)
+            self.server_thread.start()
 
     def stop_server(self):
         """
