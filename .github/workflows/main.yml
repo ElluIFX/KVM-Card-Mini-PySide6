@@ -43,7 +43,7 @@ jobs:
           standalone: true
           enable-plugins: pyside6
           windows-icon-from-ico: ./icons/icon.ico 
-          include-data-dir: ./icons=icons,./web=web,./web_s=web_s
+          include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
           include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd
           include-qt-plugins: multimedia
           disable-console: true
