@@ -35,7 +35,7 @@ jobs:
           pip install -r Client/requirements.txt
 
       # Build python script into a stand-alone exe
-      - uses: Nuitka/Nuitka-Action@b61097e587
+      - uses: Nuitka/Nuitka-Action@b61097e5874925de64dc6ac9de9b94f076c9fb24
         with:
           working-directory: ./Client
           script-name: ./Mini-KVM.py
