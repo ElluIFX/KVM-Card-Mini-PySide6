@@ -35,15 +35,15 @@ jobs:
           pip install -r Client/requirements.txt
 
       # Build python script into a stand-alone exe
-      - uses: Nuitka/Nuitka-Action@main
+      - uses: Nuitka/Nuitka-Action@b61097e587
         with:
           working-directory: ./Client
           script-name: ./Mini-KVM.py
           onefile: true
           standalone: true
           enable-plugins: pyside6
-          windows-icon-from-ico: ./icons/icon.ico
-          include-data-dir: './icons=icons,./web=web,./web_s=web_s'
+          windows-icon-from-ico: ./icons/icon.ico 
+          include-data-dir: ./icons=icons,./web=web,./web_s=web_s
           include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd
           include-qt-plugins: multimedia
           disable-console: true
