@@ -1,0 +1,63 @@
+# This is a workflow for building the kasa_cli executable on all three major platforms.
+
+name: Build-All-Platforms
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: ["main"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+      
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      # Check-out repository
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9' # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified 
+          cache: 'pip'
+          cache-dependency-path: Client/requirements.txt
+
+      # Install dependencies
+      - name: Install Dependencies
+        run: |
+          pip install -r Client/requirements.txt
+
+      # Build python script into a stand-alone exe
+      - uses: Nuitka/Nuitka-Action@main
+        with:
+          working-directory: ./Client
+          script-name: ./Mini-KVM.py
+          onefile: true
+          standalone: true
+          enable-plugins: pyside6
+          windows-icon-from-ico: ./icons/icon.ico
+          include-data-dir: ./icons=icons
+          include-data-dir: ./web=web
+          include-data-dir: ./web_s=web_s
+          include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd
+          include-qt-plugins: multimedia
+  
+      # Uploads artifacts
+      - name: "Upload Artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ runner.os }} Build
+          path: |
+            build/*.exe
+            build/*.bin
+            build/*.app/**/*
