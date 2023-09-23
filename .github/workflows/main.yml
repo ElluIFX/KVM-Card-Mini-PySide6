@@ -43,7 +43,7 @@ jobs:
           standalone: true
           enable-plugins: pyside6
           windows-icon-from-ico: ./icons/icon.ico
-          include-data-dir: ./icons=icons,./web=web,./web_s=web_s
+          include-data-dir: './icons=icons,./web=web,./web_s=web_s'
           include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd
           include-qt-plugins: multimedia
           disable-console: true
@@ -54,6 +54,6 @@ jobs:
         with:
           name: ${{ runner.os }} Build
           path: |
-            build/*.exe
-            build/*.bin
-            build/*.app/**/*
+            Client/build/*.exe
+            Client/build/*.bin
+            Client/build/*.app/**/*
