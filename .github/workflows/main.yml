@@ -42,7 +42,7 @@ jobs:
           onefile: true
           standalone: true
           enable-plugins: pyside6
-          windows-icon-from-ico: ./icons/icon.ico 
+          windows-icon-from-ico: ./icons/icon.ico
           include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
           include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd
           include-qt-plugins: multimedia
@@ -57,3 +57,5 @@ jobs:
             Client/build/*.exe
             Client/build/*.bin
             Client/build/*.app/**/*
+
+      
