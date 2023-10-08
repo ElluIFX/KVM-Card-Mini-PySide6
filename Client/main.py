@@ -535,6 +535,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         self.status["init_ok"] = True
 
+        self.crash_devices = []
+
         self.camera_list_inited = False
         if self.video_config["auto_connect"]:
             self.device_setup_dialog.checkBoxAutoConnect.setChecked(True)
@@ -759,9 +761,29 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.device_setup_dialog.comboBox_3.addItem(fmt_str)
 
     def camera_error_occurred(self, error, string):
-        logger.error(f"Camera error: {error}")
-        self.video_alert(f"Video device error: {error}")
-        # self.set_device(False, force_stop=True)
+        error_s = f"Occurred error: {error}\nfor device: {self.camera_info.description()}\nDevice disconnected"
+        self.crash_devices.append(
+            (
+                self.camera,
+                self.capture_session,
+                self.image_capture,
+                self.video_record,
+            )
+        )
+        if self.audio_opened:
+            self.crash_devices.append(
+                (self.audio_input, self.audio_output, self.audio_in_device, self.audio_out_device)
+            )
+        self.statusbar_icon1.setPixmap(load_pixmap("video-off"))
+        self.camera_opened = False
+        self.camera_info = None
+        self.takeCentralWidget()
+        self.setCentralWidget(self.disconnect_label)
+        self.videoWidget.hide()
+        self.disconnect_label.show()
+        self.setWindowTitle("USB KVM Client")
+        logger.error(error_s)
+        QMessageBox.critical(self, "Device Error", error_s)
 
     def frame_changed(self, frame: QVideoFrame):
         # self.image = frame.toImage()
@@ -820,12 +842,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.audio_in_device = in_device
             self.audio_out_device = out_device
 
+        self.camera.errorOccurred.connect(self.camera_error_occurred)
         self.camera.start()
         if not self.camera.isActive():
             self.video_alert("Video device connect failed")
             return False
-
-        self.camera.errorOccurred.connect(self.camera_error_occurred)
 
         self.capture_session = QMediaCaptureSession()
         self.capture_session.setCamera(self.camera)
@@ -916,15 +937,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     # 视频设备错误提示
     def video_alert(self, s):
-        err = QMessageBox(self)
-        err.setWindowTitle("Video device error")
-        err.setText(s)
-        err.exec()
-        self.device_event_handle("video_error")
-        logger.error(s)
+        QMessageBox.critical(self, "Video Error", s)
 
     # 启用和禁用视频设备
-    def set_device(self, state, center=False, force_stop=False):
+    def set_device(self, state, center=False):
         if self.serverFrame.isVisible():
             QMessageBox.critical(self, "Error", "Close KVM Server before local connection")
             return False
@@ -943,25 +959,26 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 f"USB KVM Client - {self.video_config['resolution_X']}x{self.video_config['resolution_Y']} @ {fps:.1f}"
             )
         else:
-            if self.camera_opened:
-                if not force_stop:
-                    self.camera.stop()
-                self.device_event_handle("video_close")
-                self.takeCentralWidget()
-                self.setCentralWidget(self.disconnect_label)
-                self.videoWidget.hide()
-                self.disconnect_label.show()
-                self.setWindowTitle("USB KVM Client")
-                del self.capture_session
-                del self.camera
-                del self.image_capture
-                del self.video_record
-                if self.audio_opened:
-                    del self.audio_input
-                    del self.audio_output
-                    del self.audio_in_device
-                    del self.audio_out_device
-                    self.audio_opened = False
+            if not self.camera_opened:
+                return
+            self.camera.setActive(False)
+            self.camera.deleteLater()
+            self.capture_session.deleteLater()
+            self.camera.deleteLater()
+            self.image_capture.deleteLater()
+            self.video_record.deleteLater()
+            if self.audio_opened:
+                self.audio_input.deleteLater()
+                self.audio_output.deleteLater()
+                del self.audio_in_device
+                del self.audio_out_device
+                self.audio_opened = False
+            self.device_event_handle("video_close")
+            self.takeCentralWidget()
+            self.setCentralWidget(self.disconnect_label)
+            self.videoWidget.hide()
+            self.disconnect_label.show()
+            self.setWindowTitle("USB KVM Client")
 
     # 捕获鼠标功能
     def capture_mouse(self):
@@ -2002,6 +2019,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.shortcut_status(kb_buffer)
 
     def closeEvent(self, event):
+        os._exit(0)
         if self.paste_board_dialog.isVisible():
             self.paste_board_dialog.close()
         if self.shortcut_key_dialog.isVisible():
@@ -2012,8 +2030,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.indicator_dialog.close()
         if self.numkeyboard_dialog.isVisible():
             self.numkeyboard_dialog.close()
-        # if self.server.running:
-        #     self.server.stop_server()
+        if self.server.running:
+            self.server.stop_server()
         return super().closeEvent(event)
 
     @Slot()
