@@ -17,3 +17,11 @@ Simple KVM Console to USB
 注:
 
 因为git的问题, 文件夹Client/data似乎没自动从Data变更为data, 请手动改名再编译, 如果直接用release文件的话可以无视, 这个版本把data编译进单文件了, 只需要直接运行exe即可
+
+## Build by action
+
+懒得手动Build上传release了, 自行去[Action](https://github.com/ElluIFX/KVM-Card-Mini-PySide6/actions)里找最新的commit对应的build任务下载
+
+## Other platform
+
+Hook功能依赖 pyWinhook 包，删掉这个功能和对应的import就可以build跨平台版本
