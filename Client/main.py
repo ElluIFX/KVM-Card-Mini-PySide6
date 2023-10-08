@@ -46,6 +46,11 @@ shift_symbol = [
 PATH = os.path.dirname(os.path.abspath(__file__))
 ARGV_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
 dark_theme = True
+try:
+    with open(os.path.join(ARGV_PATH, "config.yaml"), "r") as load_f:
+        dark_theme = yaml.safe_load(load_f)["config"]["dark_theme"]
+except Exception as e:
+    pass
 
 
 class Fake_StdWriter:
@@ -287,8 +292,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             "RGB_mode": False,
             "quick_paste": True,
         }
-        global dark_theme
-        dark_theme = self.config["dark_theme"]
         if dark_theme:
             self.set_font_bold(self.actionDark_theme, True)
 
@@ -761,7 +764,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.device_setup_dialog.comboBox_3.addItem(fmt_str)
 
     def camera_error_occurred(self, error, string):
-        error_s = f"Occurred error: {error}\nfor device: {self.camera_info.description()}\nDevice disconnected"
+        error_s = f"Device: {self.camera_info.description()}\nReturned: {error}\n\nDevice disconnected"
         self.crash_devices.append(
             (
                 self.camera,
@@ -2310,9 +2313,19 @@ def clear_splash():
 
 
 def main():
-    app = QApplication(sys.argv)
+    argv = sys.argv
+    if dark_theme:
+        argv += ["-platform", "windows:darkmode=2", "--style", "Windows"] # or "Fusion" ?
+    app = QApplication(argv)
     myWin = MyMainWindow()
-    qdarktheme.setup_theme(theme="dark" if dark_theme else "light")
+    qdarktheme.setup_theme(
+        theme="dark" if dark_theme else "light",
+        custom_colors={
+            "[dark]": {
+                "background>base": "#1f2021",
+            }
+        },
+    )
     myWin.show()
     QTimer.singleShot(100, myWin.shortcut_status)
     clear_splash()
