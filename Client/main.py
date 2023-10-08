@@ -302,11 +302,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         # 窗口图标
         self.setWindowIcon(QIcon(f"{PATH}/icons/icon.ico"))
-        self.device_setup_dialog.setWindowIcon(load_icon("import", False))
-        self.shortcut_key_dialog.setWindowIcon(load_icon("keyboard-settings-outline", False))
-        self.paste_board_dialog.setWindowIcon(load_icon("paste", False))
-        self.indicator_dialog.setWindowIcon(load_icon("capslock", False))
-        self.numkeyboard_dialog.setWindowIcon(load_icon("numkey", False))
+        self.device_setup_dialog.setWindowIcon(load_icon("import"))
+        self.shortcut_key_dialog.setWindowIcon(load_icon("keyboard-settings-outline"))
+        self.paste_board_dialog.setWindowIcon(load_icon("paste"))
+        self.indicator_dialog.setWindowIcon(load_icon("capslock"))
+        self.numkeyboard_dialog.setWindowIcon(load_icon("numkey"))
 
         # 状态栏图标
         self.statusbar_lable1 = QLabel()
