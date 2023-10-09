@@ -2205,8 +2205,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             if self.server.running:
                 ret = QMessageBox.warning(
                     self,
-                    "Warning",
-                    "Server is running, stop it?",
+                    self.tr("Warning"),
+                    self.tr("Server is running, stop it?"),
                     QMessageBox.Yes | QMessageBox.No,
                     QMessageBox.No,
                 )

@@ -1084,6 +1084,7 @@ Stay cursor at left top corner to show toolbar</source>
         <location filename="main.py" line="2078"/>
         <location filename="main.py" line="2097"/>
         <location filename="main.py" line="2186"/>
+        <location filename="main.py" line="2208"/>
         <location filename="main.py" line="2233"/>
         <location filename="main.py" line="2243"/>
         <source>Warning</source>
@@ -1177,6 +1178,7 @@ Stay cursor at left top corner to show toolbar</source>
         <translation>视频设备已打开，是否关闭？</translation>
     </message>
     <message>
+        <location filename="main.py" line="2209"/>
         <location filename="main.py" line="2244"/>
         <source>Server is running, stop it?</source>
         <translation>服务器正在运行，是否停止？</translation>
