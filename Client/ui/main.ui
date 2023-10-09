@@ -683,6 +683,9 @@
    </property>
   </action>
   <action name="action_fullscreen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Fullscreen</string>
    </property>
@@ -693,21 +696,30 @@
    </property>
   </action>
   <action name="actionKeep_ratio">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Keep aspect ratio</string>
    </property>
   </action>
   <action name="actionKeep_on_top">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Always on top</string>
    </property>
   </action>
   <action name="actionPaste_board">
    <property name="text">
-    <string>Paste board</string>
+    <string>Pasteboard</string>
    </property>
   </action>
   <action name="actionHide_cursor">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Hide cursor</string>
    </property>
@@ -728,6 +740,9 @@
    </property>
   </action>
   <action name="actionDark_theme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Dark theme</string>
    </property>
@@ -738,13 +753,28 @@
    </property>
   </action>
   <action name="actionRGB">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
-    <string>RGB Led</string>
+    <string>RGB Indicator</string>
+   </property>
+   <property name="toolTip">
+    <string>RGB Indicator</string>
+   </property>
+   <property name="whatsThis">
+    <string/>
    </property>
   </action>
   <action name="actionQuick_paste">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Quick paste</string>
+   </property>
+   <property name="statusTip">
+    <string>Click Ctrl+Shift+Alt+V to quickly send your pasteboard</string>
    </property>
   </action>
   <action name="actionWindows_Audio_Setting">
@@ -773,8 +803,14 @@
    </property>
   </action>
   <action name="actionSystem_hook">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>System hook</string>
+   </property>
+   <property name="statusTip">
+    <string>Blocks the system from responding to user input</string>
    </property>
   </action>
   <action name="actionRefresh_device_list">

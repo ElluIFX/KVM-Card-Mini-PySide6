@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
     runs-on: windows-latest
-    
+
     steps:
       # Check-out repository
       - uses: actions/checkout@v3
@@ -44,10 +44,10 @@ jobs:
           enable-plugins: pyside6
           windows-icon-from-ico: ./icons/icon.ico
           include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
-          include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd
+          include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd,trans_cn.qm=trans_cn.qm
           include-qt-plugins: multimedia
           disable-console: true
-  
+
       # Uploads artifacts
       - name: "Upload Artifacts"
         uses: actions/upload-artifact@v3
@@ -57,5 +57,3 @@ jobs:
             Client/build/*.exe
             Client/build/*.bin
             Client/build/*.app/**/*
-
-      

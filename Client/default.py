@@ -2,6 +2,7 @@ default_config = """config:
   dark_theme: true
   fullscreen_alert_showed: false
   fullscreen_key: F11
+  translation: true
 paste_board:
   click_interval: 8
   packet_size: 1000
