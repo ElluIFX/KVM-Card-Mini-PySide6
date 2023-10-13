@@ -488,12 +488,21 @@
     <addaction name="separator"/>
     <addaction name="actionWeb_client"/>
    </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>About</string>
+    </property>
+    <addaction name="actionAuthor"/>
+    <addaction name="separator"/>
+    <addaction name="actionRaw_author"/>
+   </widget>
    <addaction name="menu_video_menu"/>
    <addaction name="menuVideo"/>
    <addaction name="menuKeyboard"/>
    <addaction name="menuMouse"/>
    <addaction name="menuTools"/>
    <addaction name="menuServer"/>
+   <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="sizeGripEnabled">
@@ -821,6 +830,16 @@
   <action name="actionWeb_client">
    <property name="text">
     <string>Web client</string>
+   </property>
+  </action>
+  <action name="actionAuthor">
+   <property name="text">
+    <string>Author: @ElluIFX</string>
+   </property>
+  </action>
+  <action name="actionRaw_author">
+   <property name="text">
+    <string>Raw author: @Jackadminx</string>
    </property>
   </action>
  </widget>

@@ -305,7 +305,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             "RGB_mode": False,
             "quick_paste": True,
         }
-        self.set_font_bold(self.actionDark_theme, dark_theme)
+        self.set_checked(self.actionDark_theme, dark_theme)
 
         # 获取显示器分辨率大小
         self.desktop = QGuiApplication.primaryScreen()
@@ -421,8 +421,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionWeb_client.setIcon(load_icon("web"))
 
         if self.video_config["keep_aspect_ratio"]:
-            self.set_font_bold(self.actionKeep_ratio, True)
-        self.set_font_bold(self.actionQuick_paste, True)
+            self.set_checked(self.actionKeep_ratio, True)
+        self.set_checked(self.actionQuick_paste, True)
 
         # 初始化监视器
         self.setCentralWidget(self.serverFrame)
@@ -495,6 +495,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.paste_board_dialog.pushButtonFile.clicked.connect(self.paste_board_file_select)
 
         self.kvmSetDeviceCombo.currentTextChanged.connect(self.update_server_device_info)
+
+        self.actionAuthor.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ElluIFX")))
+        self.actionRaw_author.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/Jackadminx")))
 
         self.device_setup_dialog.checkBoxAudio.setChecked(self.audio_config["audio_support"])
         self.device_setup_dialog.checkBoxAudio.stateChanged.connect(self.audio_checkbox_switch)
@@ -620,13 +623,16 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             else:
                 self.capture_mouse()
 
-    def set_font_bold(self, attr, bold):
+    def set_checked(self, attr, state):
         font = attr.font()
-        font.setBold(bold)
-        # font.setItalic(bold)
-        if attr.isCheckable():
-            attr.setChecked(bold)
+        font.setBold(state)
         attr.setFont(font)
+        if attr.isCheckable():
+            # attr.setChecked(bold)
+            text = attr.text().replace(" ·", "")
+            if state:
+                text += " ·"
+            attr.setText(text)
 
     def save_config(self):
         # 保存配置文件
@@ -1048,10 +1054,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.video_config["keep_aspect_ratio"] = not self.video_config["keep_aspect_ratio"]
         if self.video_config["keep_aspect_ratio"]:
             self.videoWidget.setAspectRatioMode(Qt.KeepAspectRatio)
-            self.set_font_bold(self.actionKeep_ratio, True)
+            self.set_checked(self.actionKeep_ratio, True)
         else:
             self.videoWidget.setAspectRatioMode(Qt.IgnoreAspectRatio)
-            self.set_font_bold(self.actionKeep_ratio, False)
+            self.set_checked(self.actionKeep_ratio, False)
         if not self.status["fullscreen"]:
             self.resize(self.width(), self.height() + 1)
         self.statusBar().showMessage(self.tr("Keep aspect ratio: ") + str_bool(self.video_config["keep_aspect_ratio"]))
@@ -1435,12 +1441,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def quick_paste_func(self):
         self.status["quick_paste"] = not self.status["quick_paste"]
-        self.set_font_bold(self.actionQuick_paste, self.status["quick_paste"])
+        self.set_checked(self.actionQuick_paste, self.status["quick_paste"])
         self.statusBar().showMessage(self.tr("Quick paste: ") + str_bool(self.status["quick_paste"]))
 
     def system_hook_func(self):
         self.hook_state = not self.hook_state
-        self.set_font_bold(self.actionSystem_hook, self.hook_state)
+        self.set_checked(self.actionSystem_hook, self.hook_state)
         self.statusBar().showMessage(self.tr("System hook: ") + str_bool(self.hook_state))
         if self.hook_state:
             self.pythoncom_timer.start(5)
@@ -1652,7 +1658,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def RGB_func(self):
         self.status["RGB_mode"] = not self.status["RGB_mode"]
-        self.set_font_bold(self.actionRGB, self.status["RGB_mode"])
+        self.set_checked(self.actionRGB, self.status["RGB_mode"])
         self.statusBar().showMessage(self.tr("RGB Indicator: ") + str_bool(self.status["RGB_mode"]))
         if not self.status["RGB_mode"]:
             if self.status["mouse_capture"]:
@@ -1685,22 +1691,22 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.action_Resize_window.setEnabled(False)
             self.statusBar().hide()
             self.menuBar().hide()
-            self.set_font_bold(self.action_fullscreen, True)
+            self.set_checked(self.action_fullscreen, True)
         else:
             self.showNormal()
             self.action_fullscreen.setChecked(False)
             self.action_Resize_window.setEnabled(True)
             self.statusBar().show()
             self.menuBar().show()
-            self.set_font_bold(self.action_fullscreen, False)
+            self.set_checked(self.action_fullscreen, False)
 
     # 隐藏指针
     def hide_cursor_func(self):
         self.status["hide_cursor"] = not self.status["hide_cursor"]
         if self.status["hide_cursor"]:
-            self.set_font_bold(self.actionHide_cursor, True)
+            self.set_checked(self.actionHide_cursor, True)
         else:
-            self.set_font_bold(self.actionHide_cursor, False)
+            self.set_checked(self.actionHide_cursor, False)
         self.statusBar().showMessage(self.tr("Hide cursor when capture mouse: ") + str_bool(self.status["hide_cursor"]))
 
     # 保持窗口在最前
@@ -1709,7 +1715,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.setWindowFlags(Qt.WindowStaysOnTopHint if self.status["topmost"] else Qt.Widget)
         self.show()
         self.statusBar().showMessage(self.tr("Window always on top: ") + str_bool(self.status["topmost"]))
-        self.set_font_bold(self.actionKeep_on_top, self.status["topmost"])
+        self.set_checked(self.actionKeep_on_top, self.status["topmost"])
 
     # 窗口失焦事件
     def changeEvent(self, event):
@@ -1726,7 +1732,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def dark_theme_func(self):
         self.config["dark_theme"] = not self.config["dark_theme"]
-        self.set_font_bold(self.actionDark_theme, self.config["dark_theme"])
+        self.set_checked(self.actionDark_theme, self.config["dark_theme"])
         self.save_config()
         info = QMessageBox(self)
         info.setWindowTitle(self.tr("Dark theme"))
@@ -2347,6 +2353,10 @@ def main():
     if translation:
         if translator.load(os.path.join(PATH, "trans_cn.qm")):
             app.installTranslator(translator)
+    translator2 = QTranslator(app)
+    if translation:
+        if translator2.load(os.path.join(PATH, "qtbase_cn.qm")):
+            app.installTranslator(translator2)
     myWin = MyMainWindow()
     qdarktheme.setup_theme(
         theme="dark" if dark_theme else "light",

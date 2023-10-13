@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'shortcut_key.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.4.2
+## Created by: Qt User Interface Compiler version 6.5.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,9 +23,9 @@ class Ui_Dialog(object):
         if not Dialog.objectName():
             Dialog.setObjectName(u"Dialog")
         Dialog.setWindowModality(Qt.WindowModal)
-        Dialog.resize(400, 135)
-        Dialog.setMinimumSize(QSize(400, 135))
-        Dialog.setMaximumSize(QSize(400, 135))
+        Dialog.resize(400, 145)
+        Dialog.setMinimumSize(QSize(400, 145))
+        Dialog.setMaximumSize(QSize(400, 145))
         self.gridLayout = QGridLayout(Dialog)
         self.gridLayout.setObjectName(u"gridLayout")
         self.pushButton_ctrl = QPushButton(Dialog)

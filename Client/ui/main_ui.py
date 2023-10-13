@@ -149,6 +149,10 @@ class Ui_MainWindow(object):
         self.actionRefresh_device_list.setObjectName(u"actionRefresh_device_list")
         self.actionWeb_client = QAction(MainWindow)
         self.actionWeb_client.setObjectName(u"actionWeb_client")
+        self.actionAuthor = QAction(MainWindow)
+        self.actionAuthor.setObjectName(u"actionAuthor")
+        self.actionRaw_author = QAction(MainWindow)
+        self.actionRaw_author.setObjectName(u"actionRaw_author")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.serverFrame = QFrame(self.centralwidget)
@@ -348,6 +352,8 @@ class Ui_MainWindow(object):
         self.menuVideo.setObjectName(u"menuVideo")
         self.menuServer = QMenu(self.menubar)
         self.menuServer.setObjectName(u"menuServer")
+        self.menuAbout = QMenu(self.menubar)
+        self.menuAbout.setObjectName(u"menuAbout")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
@@ -360,6 +366,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuMouse.menuAction())
         self.menubar.addAction(self.menuTools.menuAction())
         self.menubar.addAction(self.menuServer.menuAction())
+        self.menubar.addAction(self.menuAbout.menuAction())
         self.menu_video_menu.addAction(self.action_video_devices)
         self.menu_video_menu.addAction(self.action_video_device_connect)
         self.menu_video_menu.addAction(self.action_video_device_disconnect)
@@ -407,6 +414,9 @@ class Ui_MainWindow(object):
         self.menuServer.addAction(self.actionRefresh_device_list)
         self.menuServer.addSeparator()
         self.menuServer.addAction(self.actionWeb_client)
+        self.menuAbout.addAction(self.actionAuthor)
+        self.menuAbout.addSeparator()
+        self.menuAbout.addAction(self.actionRaw_author)
 
         self.retranslateUi(MainWindow)
 
@@ -485,6 +495,8 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(statustip)
         self.actionRefresh_device_list.setText(QCoreApplication.translate("MainWindow", u"Refresh device list", None))
         self.actionWeb_client.setText(QCoreApplication.translate("MainWindow", u"Web client", None))
+        self.actionAuthor.setText(QCoreApplication.translate("MainWindow", u"Author: @ElluIFX", None))
+        self.actionRaw_author.setText(QCoreApplication.translate("MainWindow", u"Raw author: @Jackadminx", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"KVM Server Settings", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Host:", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port:", None))
@@ -504,5 +516,6 @@ class Ui_MainWindow(object):
         self.menuTools.setTitle(QCoreApplication.translate("MainWindow", u"Tools", None))
         self.menuVideo.setTitle(QCoreApplication.translate("MainWindow", u"Video", None))
         self.menuServer.setTitle(QCoreApplication.translate("MainWindow", u"Server", None))
+        self.menuAbout.setTitle(QCoreApplication.translate("MainWindow", u"About", None))
     # retranslateUi
 
