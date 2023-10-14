@@ -20,7 +20,7 @@ from PySide6.QtGui import *
 from PySide6.QtMultimedia import *
 from PySide6.QtMultimediaWidgets import *
 from PySide6.QtWidgets import *
-from server import KVM_Server, add_auth_user, count_auth_users
+from server import FPSCounter, KVM_Server, add_auth_user, count_auth_users
 from ui import (
     device_setup_dialog_ui,
     indicator_ui,
@@ -252,6 +252,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.camera_info = None
         self.audio_opened = False
         self.device_connected = False
+        self.fpsc = FPSCounter()
 
         # 子窗口
         self.device_setup_dialog = MyDeviceSetupDialog()
@@ -839,14 +840,13 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.videoWidget.hide()
         self.disconnect_label.show()
         self.setWindowTitle("USB KVM Client")
-        logger.error(error_s)
         self.check_device_status()
         QMessageBox.critical(self, self.tr("Device Error"), error_s)
 
     def frame_changed(self, frame: QVideoFrame):
-        # self.image = frame.toImage()
-        # self.image_event.set()
-        pass
+        self.videoWidget.videoSink().setVideoFrame(frame)
+        self.videoWidget.update()
+        self.videoWidget.repaint()
 
     # 初始化指定配置视频设备
     def setup_device(self):
@@ -908,12 +908,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         self.capture_session = QMediaCaptureSession()
         self.capture_session.setCamera(self.camera)
-        # self.capture_session.setVideoSink(self.videoWidget.videoSink())
-        self.capture_session.setVideoOutput(self.videoWidget)
-        # self.video_sink = QVideoSink()
-        # self.video_sink.videoFrameChanged.connect(self.frame_changed)
-        # self.video_sink.setVideoFrame(self.videoWidget)
-        # self.capture_session.setVideoSink(self.video_sink)
+        self.video_sink = QVideoSink()
+        self.capture_session.setVideoSink(self.video_sink)
+        # self.capture_session.setVideoOutput(self.videoWidget)
+        self.video_sink.videoFrameChanged.connect(self.frame_changed)
 
         self.image_capture = QImageCapture(self.camera)
         self.capture_session.setImageCapture(self.image_capture)
@@ -1917,6 +1915,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def mouse_report_timeout(self):
         if self._new_mouse_report:
             self._hid_signal.emit(mouse_buffer)
+            self._new_mouse_report = False
 
     scan_to_b2 = {
         0x001D: 1,  # Left Control

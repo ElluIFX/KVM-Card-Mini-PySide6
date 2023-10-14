@@ -140,7 +140,7 @@ def check_auth_secret():
     return False
 
 
-class fps_counter:
+class FPSCounter:
     def __init__(self, max_sample=40) -> None:
         self.t = time.perf_counter()
         self.max_sample = max_sample
@@ -175,7 +175,7 @@ class fps_counter:
         self.t = time.perf_counter()
 
 
-fpc = fps_counter()
+fpc = FPSCounter()
 
 
 class KVM_Server(QObject):
