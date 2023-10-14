@@ -3,6 +3,7 @@ default_config = """config:
   fullscreen_alert_showed: false
   fullscreen_key: F11
   translation: true
+  mouse_report_freq: 60
 paste_board:
   click_interval: 8
   packet_size: 1000

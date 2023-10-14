@@ -45,6 +45,11 @@ shift_symbol = [
 ]  # fmt: skip
 PATH = os.path.dirname(os.path.abspath(__file__))
 ARGV_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+if not os.path.exists(os.path.join(ARGV_PATH, "config.yaml")):
+    with open(os.path.join(ARGV_PATH, "config.yaml"), "w") as f:
+        f.write(default_config)
+
 dark_theme = True
 translation = True
 try:
@@ -218,9 +223,24 @@ class MyNumKeyboardDialog(QDialog, numboard_ui.Ui_Dialog):
         self.setFixedWidth(self.width())
 
 
+class HidThread(QThread):
+    _hid_signal = Signal(list)
+    _event_signal = Signal(str)
+
+    def __init__(self, parent=None):
+        super(HidThread, self).__init__(parent)
+        self._hid_signal.connect(self.hid_report)
+
+    def hid_report(self, buf):
+        hidinfo = hid_def.hid_report(buf)
+        if hidinfo == 1 or hidinfo == 4:
+            self._event_signal.emit("hid_error")
+
+
 class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     _log_signal = Signal(str)
     _wheel_signal = Signal()
+    _hid_signal = Signal(list)
 
     def __init__(self, parent=None):
         self.ignore_event = False
@@ -273,9 +293,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.keyboard_scancode2hid = yaml.safe_load(load_f)
             with open(os.path.join(PATH, "data", "keyboard.yaml"), "r") as load_f:
                 self.keyboard_code = yaml.safe_load(load_f)
-            if not os.path.exists(os.path.join(ARGV_PATH, "config.yaml")):
-                with open(os.path.join(ARGV_PATH, "config.yaml"), "w") as f:
-                    f.write(default_config)
             with open(os.path.join(ARGV_PATH, "config.yaml"), "r") as load_f:
                 self.configfile = yaml.safe_load(load_f)
             self.config = self.configfile["config"]
@@ -283,6 +300,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.video_config = self.configfile["video_config"]
             self.audio_config = self.configfile["audio_config"]
             self.fullscreen_key = getattr(Qt, f'Key_{self.config["fullscreen_key"]}')
+            self.MOUSE_REPORT_INTERVAL = 1 / self.config["mouse_report_freq"]
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -427,13 +445,17 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         # 初始化监视器
         self.setCentralWidget(self.serverFrame)
         self.serverFrame.setHidden(True)
-
         self.videoWidget = QVideoWidget()
+        self.videoWidget.setAttribute(Qt.WA_OpaquePaintEvent)
         self.takeCentralWidget()
         self.setCentralWidget(self.videoWidget)
         self.videoWidget.setMouseTracking(True)
         self.videoWidget.children()[0].setMouseTracking(True)
         self.videoWidget.hide()
+
+        s_format = QSurfaceFormat.defaultFormat()
+        s_format.setSwapInterval(0)
+        QSurfaceFormat.setDefaultFormat(s_format)
 
         self.disconnect_label = QLabel()
         self.disconnect_label.setPixmap(load_pixmap("disconnected"))
@@ -542,6 +564,17 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.server = KVM_Server(parent=self)
         self.server_simple_started = False
         self._wheel_signal.connect(self.mouse_wheel_act)
+
+        self._last_mouse_report = time.perf_counter()
+        self._new_mouse_report = False
+        self._mouse_report_timer = QTimer()
+        self._mouse_report_timer.timeout.connect(self.mouse_report_timeout)
+        self._mouse_report_timer.start(1000 / self.config["mouse_report_freq"])
+        # self._hid_signal.connect(self.hid_report)
+        self._hid_thread = HidThread()
+        self._hid_signal = self._hid_thread._hid_signal
+        self._hid_thread._event_signal.connect(self.device_event_handle)
+        self._hid_thread.start()
 
         self.hook_state = False
         self.hook_manager = pyHook.HookManager()
@@ -807,6 +840,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.disconnect_label.show()
         self.setWindowTitle("USB KVM Client")
         logger.error(error_s)
+        self.check_device_status()
         QMessageBox.critical(self, self.tr("Device Error"), error_s)
 
     def frame_changed(self, frame: QVideoFrame):
@@ -874,8 +908,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
         self.capture_session = QMediaCaptureSession()
         self.capture_session.setCamera(self.camera)
-        # self.capture_session.setVideoOutput(self.videoWidget)
-        self.capture_session.setVideoSink(self.videoWidget.videoSink())
+        # self.capture_session.setVideoSink(self.videoWidget.videoSink())
+        self.capture_session.setVideoOutput(self.videoWidget)
         # self.video_sink = QVideoSink()
         # self.video_sink.videoFrameChanged.connect(self.frame_changed)
         # self.video_sink.setVideoFrame(self.videoWidget)
@@ -1014,9 +1048,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     # 释放鼠标功能
     def release_mouse(self):
         self.status["mouse_capture"] = False
-        hidinfo = hid_def.hid_report([2, 0, 0, 0, 0, 0, 0, 0, 0])
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._hid_signal.emit([2, 0, 0, 0, 0, 0, 0, 0, 0])
         self.statusbar_icon3.setPixmap(load_pixmap("mouse-off"))
         self.qt_sleep(10)
         self.set_ws2812b(30, 30, 0)
@@ -1111,16 +1143,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     # 自定义组合键窗口
     def shortcut_key_func(self, s):
         if s == 1:  # release
-            hid_return = hid_def.hid_report([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-            if hid_return == 1 or hid_return == 4:
-                self.device_event_handle("hid_error")
+            self._hid_signal.emit([1, 0, 0, 0, 0, 0, 0, 0, 0])
             return
-        if s == 2:  # pressed
-            hid_return = hid_def.hid_report(self.shortcut_buffer)
-            if hid_return == 1 or hid_return == 4:
-                self.device_event_handle("hid_error")
+        elif s == 2:  # pressed
+            self._hid_signal.emit(self.shortcut_buffer)
             return
-        if s == 3:  # save
+        elif s == 3:  # save
             text, ok = QInputDialog.getText(self, self.tr("Save shortcut key"), self.tr("Shortcut name:"))
             if ok:
                 idx = len(self.configfile["shortcut_key"]["shortcut_key_name"])
@@ -1166,7 +1194,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.shortcut_key_dialog.keySequenceEdit.setKeySequence("")
             for i in range(2, len(self.shortcut_buffer)):
                 self.shortcut_buffer[i] = 0
-
         if s == 0xFF:  # keySequenceChanged
             if self.shortcut_key_dialog.keySequenceEdit.keySequence().count() == 0:  # 去除多个复合键
                 keysequence = ""
@@ -1253,11 +1280,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             get = self.configfile["shortcut_key"]["shortcut_key_hidcode"][s]
         except Exception as e:
             return
-        hid_def.hid_report(get)
+        self._hid_signal.emit(get)
         self.qt_sleep(10)
-        hidinfo = hid_def.hid_report([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._hid_signal.emit([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
     # 设备事件处理
     def device_event_handle(self, s):
@@ -1267,10 +1292,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.status["mouse_capture"] = False
             self.statusbar_icon3.setPixmap(load_pixmap("mouse-off"))
             self.device_connected = False
+            self.check_device_timer.stop()
         elif s == "video_error":
             self.statusBar().showMessage(self.tr("Video device error"))
             self.statusbar_icon1.setPixmap(load_pixmap("video-off"))
             self.camera_opened = False
+            self.check_device_timer.start(1000)
         elif s == "video_close":
             self.statusBar().showMessage(self.tr("Video device close"))
             self.statusbar_icon1.setPixmap(load_pixmap("video-off"))
@@ -1278,17 +1305,21 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.statusbar_icon3.setPixmap(load_pixmap("mouse-off"))
             self.status["mouse_capture"] = False
             self.set_ws2812b(30, 30, 0)
+            self.check_device_timer.start(1000)
         elif s == "hid_init_error":
             self.statusBar().showMessage(self.tr("Keyboard Mouse initialization error"))
             self.statusbar_icon2.setPixmap(load_pixmap("keyboard-off"))
             self.device_connected = False
+            self.check_device_timer.stop()
         elif s == "hid_init_ok":
             self.statusBar().showMessage(self.tr("Keyboard Mouse initialization done"))
             self.statusbar_icon2.setPixmap(load_pixmap("keyboard"))
             self.device_connected = True
+            self.check_device_timer.start(1000)
         elif s == "hid_ok":
             self.statusbar_icon2.setPixmap(load_pixmap("keyboard"))
             self.device_connected = True
+            self.check_device_timer.start(1000)
         elif s == "video_ok":
             self.statusBar().showMessage(self.tr("Video device connected"))
             self.statusbar_icon1.setPixmap(load_pixmap("video"))
@@ -1296,16 +1327,19 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.statusbar_icon3.setPixmap(load_pixmap("mouse"))
             self.camera_opened = True
             self.set_ws2812b(0, 30, 30)
+            self.check_device_timer.stop()
         elif s == "device_disconnect":
             self.statusBar().showMessage(self.tr("Device disconnect"))
             self.statusbar_icon2.setPixmap(load_pixmap("keyboard-off"))
             self.statusbar_icon3.setPixmap(load_pixmap("mouse-off"))
             self.status["mouse_capture"] = False
             self.device_connected = False
+            self.check_device_timer.stop()
         elif s == "video_disconnect":
             self.statusBar().showMessage(self.tr("Device disconnect"))
             self.statusbar_icon1.setPixmap(load_pixmap("video-off"))
             self.camera_opened = False
+            self.check_device_timer.stop()
 
     # 检查连接状态
     def check_device_status(self):
@@ -1434,10 +1468,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         r = min(max(int(r), 0), 255)
         g = min(max(int(g), 0), 255)
         b = min(max(int(b), 0), 255)
-        hidinfo = hid_def.hid_report([5, 0, r, g, b, 0])
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-            return
+        self._hid_signal.emit([5, 0, r, g, b, 0])
 
     def quick_paste_func(self):
         self.status["quick_paste"] = not self.status["quick_paste"]
@@ -1532,17 +1563,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         char_buffer[self.char_idx + 4] = mapcode
         if c in shift_symbol or shift:
             char_buffer[2] |= 2
-        hidinfo = hid_def.hid_report(char_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-            return 1
+        self._hid_signal.emit(char_buffer)
         self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
-        hidinfo = hid_def.hid_report([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-            return 1
+        self._hid_signal.emit([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
-        return 0
 
     def paste_board_stop(self):
         self.paste_board_stop_flag = True
@@ -1566,7 +1590,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         kb_buffer[2] = 0
         for i, c in enumerate(text):
             self.paste_board_dialog.setWindowTitle(self.tr("Paste board - Sending") + f" {i/total:.0%}")
-            if self.send_char(c) == 1:
+            self.send_char(c)
+            if not self.device_connected:
                 self.paste_board_dialog.setWindowTitle(self.tr("Paste board - Error occurred"))
                 break
             if self.paste_board_stop_flag:
@@ -1765,10 +1790,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if not self.status["mouse_capture"]:
             return
         mouse_buffer[2] = mouse_buffer[2] | self.mouseButton_to_int(event.button())
-
-        hidinfo = hid_def.hid_report(mouse_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._hid_signal.emit(mouse_buffer)
 
     # 鼠标松开事件
     def mouseReleaseEvent(self, event):
@@ -1777,12 +1799,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if not self.status["mouse_capture"]:
             return
         mouse_buffer[2] = mouse_buffer[2] ^ self.mouseButton_to_int(event.button())
-
         if mouse_buffer[2] < 0 or mouse_buffer[2] > 7:
             mouse_buffer[2] = 0
-        hidinfo = hid_def.hid_report(mouse_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._hid_signal.emit(mouse_buffer)
 
     # 鼠标滚动事件
     def wheelEvent(self, event):
@@ -1796,10 +1815,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             mouse_buffer[7] = 0xFF
         else:
             mouse_buffer[7] = 0
-
-        hidinfo = hid_def.hid_report(mouse_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._hid_signal.emit(mouse_buffer)
         if self.mouse_scroll_timer.isActive():
             self.mouse_scroll_timer.stop()
         self.mouse_scroll_timer.start(100)
@@ -1807,9 +1823,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def mouse_scroll_stop(self):
         self.mouse_scroll_timer.stop()
         mouse_buffer[7] = 0
-        hidinfo = hid_def.hid_report(mouse_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._hid_signal.emit(mouse_buffer)
 
     def mouse_action_timeout(self):
         if self.mouse_action_target == "menuBar":
@@ -1817,6 +1831,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         elif self.mouse_action_target == "statusBar":
             self.statusBar().show()
         self.mouse_action_timer.stop()
+
+    def hid_report(self, buf: list[int]):
+        hidinfo = hid_def.hid_report(buf)
+        if hidinfo == 1 or hidinfo == 4:
+            self.device_event_handle("hid_error")
 
     # 鼠标移动事件
     def mouseMoveEvent(self, event):
@@ -1882,15 +1901,22 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if self.status["RGB_mode"]:
             self.set_ws2812b(x_hid * 255, y_hid * 255, (1 - x_hid) * (1 - y_hid) * 255)
         self.statusBar().showMessage(f"X={x_hid*x_res:.0f}, Y={y_hid*y_res:.0f}")
+        t = time.perf_counter()
+        self._last_mouse_report = t
         x_hid = int(x_hid * 0x7FFF)
         y_hid = int(y_hid * 0x7FFF)
         mouse_buffer[3] = x_hid & 0xFF
         mouse_buffer[4] = x_hid >> 8
         mouse_buffer[5] = y_hid & 0xFF
         mouse_buffer[6] = y_hid >> 8
-        hidinfo = hid_def.hid_report(mouse_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
+        self._new_mouse_report = True
+        # if t - self._last_mouse_report < self.MOUSE_REPORT_INTERVAL:
+        #     return
+        # self._hid_signal.emit(mouse_buffer)
+
+    def mouse_report_timeout(self):
+        if self._new_mouse_report:
+            self._hid_signal.emit(mouse_buffer)
 
     scan_to_b2 = {
         0x001D: 1,  # Left Control
@@ -1949,10 +1975,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     logger.warning("Key not found in buffer")
         if not self.device_connected:
             return 0
-        hidinfo = hid_def.hid_report(kb_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-            return hidinfo
+        self._hid_signal.emit(kb_buffer)
         return 0
 
     def update_kb_hid(self, hid: int, state: bool):
@@ -1978,10 +2001,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                         break
                 else:
                     logger.warning("Key not found in buffer")
-        hidinfo = hid_def.hid_report(kb_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-            return hidinfo
+        self._hid_signal.emit(kb_buffer)
         return 0
 
     def update_kb_hid(self, hid: int, state: bool):
@@ -2001,10 +2021,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     break
             else:
                 logger.error("Key not found in buffer")
-        hidinfo = hid_def.hid_report(kb_buffer)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-            return 1
+        self._hid_signal.emit(kb_buffer)
         return 0
 
     # 键盘按下事件
@@ -2053,19 +2070,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def closeEvent(self, event):
         os._exit(0)
-        if self.paste_board_dialog.isVisible():
-            self.paste_board_dialog.close()
-        if self.shortcut_key_dialog.isVisible():
-            self.shortcut_key_dialog.close()
-        if self.device_setup_dialog.isVisible():
-            self.device_setup_dialog.close()
-        if self.indicator_dialog.isVisible():
-            self.indicator_dialog.close()
-        if self.numkeyboard_dialog.isVisible():
-            self.numkeyboard_dialog.close()
-        if self.server.running:
-            self.server.stop_server()
-        return super().closeEvent(event)
 
     @Slot()
     def on_btnServerSwitch_clicked(self):
@@ -2283,7 +2287,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 mouse_buffer[7] = 0xFF
             else:
                 mouse_buffer[7] = 0
-            hidinfo = hid_def.hid_report(mouse_buffer)
+            self._hid_signal.emit(mouse_buffer)
             self._wheel_signal.emit()
         elif data_type == "mouse_btn":
             if data_payload[1] == 2:
@@ -2292,32 +2296,26 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 mouse_buffer[2] &= ~data_payload[0]
             else:
                 mouse_buffer = [2, 0, 0, 0, 0, 0, 0, 0, 0]
-            hidinfo = hid_def.hid_report(mouse_buffer)
+            self._hid_signal.emit(mouse_buffer)
         elif data_type == "mouse_pos":
             x, y = int(data_payload[0]) & 0x7FFF, int(data_payload[1]) & 0x7FFF
             mouse_buffer[3] = x & 0xFF
             mouse_buffer[4] = x >> 8
             mouse_buffer[5] = y & 0xFF
             mouse_buffer[6] = y >> 8
-            hidinfo = hid_def.hid_report(mouse_buffer)
+            self._hid_signal.emit(mouse_buffer)
         elif data_type == "keyboard":
             state = data_payload[1]
             key = data_payload[0]
             if state == 3:  # release all
                 kb_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                hidinfo = hid_def.hid_report(kb_buffer)
+                self._hid_signal.emit(kb_buffer)
             else:
                 self.update_kb_hid(key, state == 1)
-                hidinfo = 0
         elif data_type == "paste":
             logger.debug(f"Received {len(data_payload)} bytes paste data")
             if not self.ignore_event:
                 self.paste_board_send(data_payload)
-            hidinfo = 0
-        else:
-            return
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
 
     def focusInEvent(self, event):
         if self.hook_state:
