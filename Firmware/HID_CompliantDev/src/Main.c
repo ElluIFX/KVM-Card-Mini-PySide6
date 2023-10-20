@@ -96,12 +96,6 @@ const uint8_t U2KeyRepDesc[] = {
     0x91, 0x01, 0x95, 0x06, 0x75, 0x08, 0x26, 0xff, 0x00, 0x05, 0x07,
     0x19, 0x00, 0x29, 0x91, 0x81, 0x00, 0xC0};
 const uint8_t U2MouseRepDesc[] = {
-    // Relative
-    //   0x05, 0x01, 0x09, 0x02, 0xA1, 0x01, 0x09,
-    //   0x01, 0xA1, 0x00, 0x05, 0x09, 0x19, 0x01, 0x29, 0x03, 0x15, 0x00, 0x25,
-    //   0x01, 0x75, 0x01, 0x95, 0x03, 0x81, 0x02, 0x75, 0x05, 0x95, 0x01, 0x81,
-    //   0x01, 0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x38, 0x15, 0x81, 0x25,
-    //   0x7f, 0x75, 0x08, 0x95, 0x03, 0x81, 0x06, 0xC0, 0xC0
 
     // Absolute mouse
     0x05, 0x01,  // Usage Page (Generic Desktop)
@@ -152,18 +146,81 @@ const uint8_t U2MouseRepDesc[] = {
     0xC0         // End Collection
 
 };
+const uint8_t U2MouseRelDesc[] = {
+    // Relative
+    //   0x05, 0x01, 0x09, 0x02, 0xA1, 0x01, 0x09,
+    //   0x01, 0xA1, 0x00, 0x05, 0x09, 0x19, 0x01, 0x29, 0x03, 0x15, 0x00, 0x25,
+    //   0x01, 0x75, 0x01, 0x95, 0x03, 0x81, 0x02, 0x75, 0x05, 0x95, 0x01, 0x81,
+    //   0x01, 0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x38, 0x15, 0x81, 0x25,
+    //   0x7f, 0x75, 0x08, 0x95, 0x03, 0x81, 0x06, 0xC0, 0xC0
+
+    // Relative
+    0x05, 0x01,  // Usage Page (Generic Desktop)
+    0x09, 0x02,  // Usage (Mouse)
+    0xA1, 0x01,  // Collection (Application)
+    0x09, 0x01,  // Usage (Pointer)
+    0xA1, 0x00,  // Collection (Physical)
+
+    // Buttons
+    0x05, 0x09,  // Usage Page (Button)
+    0x19, 0x01,  // Usage Minimum (0x01)
+    0x29, 0x05,  // Usage Maximum (0x05)
+    0x15, 0x00,  // Logical Minimum (0)
+    0x25, 0x01,  // Logical Maximum (1)
+    0x95, 0x05,  // Report Count (5)
+    0x75, 0x01,  // Report Size (1)
+    0x81, 0x02,  // Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null
+                 // Position)
+    0x75, 0x03,  // Report Size (3)
+    0x95, 0x01,  // Report Count (1)
+    0x81, 0x03,  // Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No
+                 // Null Position)
+
+    // 0x05, 0x01, 0x09, 0x30, 0x09, 0x31,
+    0x05, 0x01,  // Usage Page (Generic Desktop Ctrls)
+    0x09, 0x30,  // Usage (X)
+    0x09, 0x31,  // Usage (Y)
+    0x15, 0x81,  // LOGICAL_MINIMUM (-127)       ; Note: 0x15 = 1 Byte; 0x16 =
+                 // 2 Byte; 0x17 = 4 Byte
+    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)   ; Note: 0x25 = 1 Byte, 0x26 = 2
+                 // Byte; 0x27 = 4 Byte Report
+    0x35, 0x81,  // Physical Minimum
+    0x45, 0x7F,  // Physical Maximum
+    0x75, 0x08,  // REPORT_SIZE (8)
+    0x95, 0x02,  // REPORT_COUNT (2)
+    0x81, 0x06,  // Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null
+                 // Position)
+
+    0x09, 0x38,  // Usage (Wheel)
+    0x15, 0x81,  // Logical Minimum (-127)
+    0x25, 0x7F,  // Logical Maximum (127)
+    0x35, 0x81,  // Physical Minimum (same as logical)
+    0x45, 0x7f,  // Physical Maximum (same as logical)
+    0x75, 0x08,  // Report Size (8)
+    0x95, 0x01,  // Report Count (1)
+
+    0x81, 0x06,  // Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null
+                 // Position)
+    0xC0, 0xC0   // End Collection
+};
 // 配置描述符
 const uint8_t U2MyCfgDescr[] = {
-    0x09, 0x02, 0x3b, 0x00, 0x02, 0x01, 0x00, 0xE0,
+    0x09, 0x02, 0x54, 0x00, 0x03, 0x01, 0x00, 0xE0,
     0x19,                                                  // 配置描述符
     0x09, 0x04, 0x00, 0x00, 0x01, 0x03, 0x01, 0x01, 0x00,  // 接口描述符,键盘
     0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22, 0x3e, 0x00,  // HID类描述符
-    0x07, 0x05, 0x81, 0x03, 0x08, 0x00, 0x0a,              // 端点描述符
+    0x07, 0x05, 0x81, 0x03, 0x08, 0x00, 0x01,              // 端点描述符
+
     0x09, 0x04, 0x01, 0x00, 0x01, 0x03, 0x01, 0x02, 0x00,  // 接口描述符,鼠标
     // 0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, 0x34, 0x00, // HID类描述符
     0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, sizeof(U2MouseRepDesc) & 0xFF,
-    sizeof(U2MouseRepDesc) >> 8,              // HID类描述符
-    0x07, 0x05, 0x82, 0x03, 0x06, 0x00, 0x01  // 端点描述符 // 0x0a
+    sizeof(U2MouseRepDesc) >> 8,               // HID类描述符
+    0x07, 0x05, 0x82, 0x03, 0x06, 0x00, 0x0a,  // 端点描述符 // 0x0a
+
+    0x09, 0x04, 0x02, 0x00, 0x01, 0x03, 0x01, 0x02, 0x00,  // 接口描述符,鼠标
+    0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, sizeof(U2MouseRelDesc) & 0xFF,
+    sizeof(U2MouseRelDesc) >> 8,              // HID类描述符
+    0x07, 0x05, 0x83, 0x03, 0x04, 0x00, 0x0a  // 端点描述符 // 0x0a
 
 };
 /* USB速度匹配描述符 */
@@ -178,7 +235,7 @@ uint8_t U2USB_FS_OSC_DESC[sizeof(U2MyCfgDescr)] = {
 // 产品信息
 const uint8_t U2MyProdInfo[] = {0x1E, 0x03, 'K', 0, 'V', 0, 'M', 0, ' ', 0,
                                 'C',  0,    'o', 0, 'n', 0, 't', 0, 'r', 0,
-                                'o',  0,    'l', 0, 'l', 0, 'e', 0, 'd', 0};
+                                'o',  0,    'l', 0, 'l', 0, 'e', 0, 'r', 0};
 
 /**********************************************************/
 uint8_t U2DevConfig, U2Ready;
@@ -190,6 +247,7 @@ uint8_t U2Idle_Value = 0x00;
 uint8_t U2USB_SleepStatus = 0x00; /* USB睡眠状态 */
 
 /*鼠标键盘数据*/
+uint8_t U2HIDMouseRel[6] = {0x0};
 uint8_t U2HIDMouse[6] = {0x0};
 uint8_t U2HIDKey[8] = {0x0};
 /******** 用户自定义分配端点RAM ****************************************/
@@ -894,6 +952,11 @@ void USB2_DevTransProcess(void) {
                     len = 9;
                     break;
 
+                  case 2:
+                    pU2Descr = (uint8_t *)(&U2MyCfgDescr[68]);
+                    len = 9;
+                    break;
+
                   default:
                     /* 不支持的字符串描述符 */
                     errflag = 0xff;
@@ -911,6 +974,11 @@ void USB2_DevTransProcess(void) {
                 {
                   pU2Descr = U2MouseRepDesc;  // 数据准备上传
                   len = sizeof(U2MouseRepDesc);
+                } else if (((pU2SetupReqPak->wIndex) & 0xff) ==
+                           2)  // 接口2报表描述符
+                {
+                  pU2Descr = U2MouseRelDesc;  // 数据准备上传
+                  len = sizeof(U2MouseRelDesc);
                   U2Ready =
                       1;  // 如果有更多接口，该标准位应该在最后一个接口配置完成后有效
                 } else
@@ -1277,7 +1345,7 @@ int main() {
 #if DEBUG_PRT
   printf("RGB ON\n");
 #endif
-  SendOnePix(rgb_ready);
+  SendOnePix((char *)rgb_ready);
 
   mDelaymS(100);
 
@@ -1286,11 +1354,12 @@ int main() {
     if (mode != 0) {
       switch (mode) {
         case 1:
-          if (!U2EP1_BUSY) {
-            memcpy(pU2EP1_IN_DataBuf, empty_buf, 8);
-            U2DevEP1_IN_Deal(8);
-            mode = 0;
+          while (U2EP1_BUSY) {
+            __nop();
           }
+          memcpy(pU2EP1_IN_DataBuf, empty_buf, 8);
+          U2DevEP1_IN_Deal(8);
+          mode = 0;
           break;
         default:
           mode = 0;
@@ -1332,6 +1401,10 @@ void DevEP1_OUT_Deal(uint8_t l) { /* 用户可自定义 */
       memcpy(pU2EP1_IN_DataBuf, pEP1_OUT_DataBuf + 2, 8);
       U2DevEP1_IN_Deal(8);
       mode = 1;
+      break;
+    case 7:
+      memcpy(pU2EP3_IN_DataBuf, pEP1_OUT_DataBuf + 2, 4);
+      U2DevEP3_IN_Deal(4);
       break;
   }
 }

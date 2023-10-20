@@ -454,6 +454,7 @@
     <addaction name="actionCapture_mouse"/>
     <addaction name="actionRelease_mouse"/>
     <addaction name="separator"/>
+    <addaction name="actionRelative_mouse"/>
     <addaction name="actionHide_cursor"/>
    </widget>
    <widget class="QMenu" name="menuTools">
@@ -840,6 +841,14 @@
   <action name="actionRaw_author">
    <property name="text">
     <string>Raw author: @Jackadminx</string>
+   </property>
+  </action>
+  <action name="actionRelative_mouse">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Relative mouse</string>
    </property>
   </action>
  </widget>

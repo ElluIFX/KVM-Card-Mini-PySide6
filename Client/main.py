@@ -37,6 +37,7 @@ import qdarktheme
 
 kb_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mouse_buffer = [2, 0, 0, 0, 0, 0, 0, 0, 0]
+mouse_buffer_rel = [7, 0, 0, 0, 0, 0, 0, 0, 0]
 shift_symbol = [
     ")","!","@","#","$","%",
     "^","&","*","(","~","_",
@@ -301,7 +302,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.video_config = self.configfile["video_config"]
             self.audio_config = self.configfile["audio_config"]
             self.fullscreen_key = getattr(Qt, f'Key_{self.config["fullscreen_key"]}')
-            self.MOUSE_REPORT_INTERVAL = 1 / self.config["mouse_report_freq"]
+            if self.config["mouse_report_freq"] != 0:
+                self.mouse_report_interval = 1000 / self.config["mouse_report_freq"]
+                self.dynamic_mouse_report_interval = False
+            else:
+                self.mouse_report_interval = 10
+                self.dynamic_mouse_report_interval = True
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -323,6 +329,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             "screen_width": 0,
             "RGB_mode": False,
             "quick_paste": True,
+            "relative_mouse": False,
         }
         self.set_checked(self.actionDark_theme, dark_theme)
 
@@ -438,6 +445,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionSystem_hook.setIcon(load_icon("hook"))
         self.actionRefresh_device_list.setIcon(load_icon("reload"))
         self.actionWeb_client.setIcon(load_icon("web"))
+        self.actionRelative_mouse.setIcon(load_icon("relative"))
 
         if self.video_config["keep_aspect_ratio"]:
             self.set_checked(self.actionKeep_ratio, True)
@@ -501,6 +509,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionQuick_paste.triggered.connect(self.quick_paste_func)
         self.actionNum_Keyboard.triggered.connect(self.num_keyboard_func)
         self.actionSystem_hook.triggered.connect(self.system_hook_func)
+        self.actionRelative_mouse.triggered.connect(self.relative_mouse_func)
 
         self.actionOn_screen_Keyboard.triggered.connect(lambda: self.menu_tools_actions(0))
         self.actionCalculator.triggered.connect(lambda: self.menu_tools_actions(1))
@@ -567,11 +576,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self._wheel_signal.connect(self.mouse_wheel_act)
 
         self._last_mouse_report = time.perf_counter()
-        self._new_mouse_report = False
+        self._new_mouse_report = 0
+        self.rel_x = 0
+        self.rel_y = 0
         self._mouse_report_timer = QTimer()
         self._mouse_report_timer.timeout.connect(self.mouse_report_timeout)
-        self._mouse_report_timer.start(1000 / self.config["mouse_report_freq"])
-        # self._hid_signal.connect(self.hid_report)
+        self._mouse_report_timer.start(self.mouse_report_interval)
         self._hid_thread = HidThread()
         self._hid_signal = self._hid_thread._hid_signal
         self._hid_thread._event_signal.connect(self.device_event_handle)
@@ -1014,6 +1024,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.setWindowTitle(
                 f"USB KVM Client - {self.video_config['resolution_X']}x{self.video_config['resolution_Y']} @ {fps:.1f}"
             )
+            if self.dynamic_mouse_report_interval:
+                self.mouse_report_interval = 1000 / fps
+                self._mouse_report_timer.setInterval(self.mouse_report_interval)
         else:
             if not self.camera_opened:
                 return
@@ -1122,7 +1135,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         elif s == 3:  # mouse
             for i in range(2, len(mouse_buffer)):
                 mouse_buffer[i] = 0
+            for i in range(2, len(mouse_buffer_rel)):
+                mouse_buffer[i] = 0
             hidinfo = hid_def.hid_report(mouse_buffer)
+            hidinfo = hid_def.hid_report(mouse_buffer_rel)
             if hidinfo == 1 or hidinfo == 4:
                 self.device_event_handle("hid_error")
             elif hidinfo == 0:
@@ -1486,6 +1502,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.pythoncom_timer.stop()
             self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
 
+    def relative_mouse_func(self):
+        self.status["relative_mouse"] = not self.status["relative_mouse"]
+        self.set_checked(self.actionRelative_mouse, self.status["relative_mouse"])
+        # self.reset_keymouse(3)
+        self.statusBar().showMessage(self.tr("Relative mouse: ") + str_bool(self.status["relative_mouse"]))
+
     # 粘贴板
     def paste_board_func(self):
         addheight = 0
@@ -1536,7 +1558,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     char_idx = 0
 
     def send_char(self, c):
-        char_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        char_buffer = [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         shift = False
         if c == "\n":
             mapcode = self.keyboard_code["ENTER"]
@@ -1564,7 +1586,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self._hid_signal.emit(char_buffer)
         self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
         self._hid_signal.emit([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
+        # self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
 
     def paste_board_stop(self):
         self.paste_board_stop_flag = True
@@ -1782,13 +1804,30 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return 0
 
     # 鼠标按下事件
+    _last_click_time = 0
+
     def mousePressEvent(self, event):
         if self.ignore_event:
             return
+        if (
+            not self.status["mouse_capture"]
+            and self.device_connected
+            and event.button() == Qt.LeftButton
+            and self.camera_opened
+        ):
+            if time.perf_counter() - self._last_click_time < 0.2:
+                self.capture_mouse()
+            else:
+                self._last_click_time = time.perf_counter()
+                self.statusBar().showMessage(self.tr("Double click to capture mouse"))
         if not self.status["mouse_capture"]:
             return
-        mouse_buffer[2] = mouse_buffer[2] | self.mouseButton_to_int(event.button())
-        self._hid_signal.emit(mouse_buffer)
+        if not self.status["relative_mouse"]:
+            buffer = mouse_buffer
+        else:
+            buffer = mouse_buffer_rel
+        buffer[2] = buffer[2] | self.mouseButton_to_int(event.button())
+        self._hid_signal.emit(buffer)
 
     # 鼠标松开事件
     def mouseReleaseEvent(self, event):
@@ -1796,10 +1835,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if not self.status["mouse_capture"]:
             return
-        mouse_buffer[2] = mouse_buffer[2] ^ self.mouseButton_to_int(event.button())
-        if mouse_buffer[2] < 0 or mouse_buffer[2] > 7:
-            mouse_buffer[2] = 0
-        self._hid_signal.emit(mouse_buffer)
+        if not self.status["relative_mouse"]:
+            buffer = mouse_buffer
+        else:
+            buffer = mouse_buffer_rel
+        buffer[2] = buffer[2] ^ self.mouseButton_to_int(event.button())
+        if buffer[2] < 0 or buffer[2] > 7:
+            buffer[2] = 0
+        self._hid_signal.emit(buffer)
 
     # 鼠标滚动事件
     def wheelEvent(self, event):
@@ -1807,21 +1850,33 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if not self.status["mouse_capture"]:
             return
-        if event.angleDelta().y() == 120:
-            mouse_buffer[7] = 0x01
-        elif event.angleDelta().y() == -120:
-            mouse_buffer[7] = 0xFF
+        if not self.status["relative_mouse"]:
+            buffer = mouse_buffer
+            bit = 7
         else:
-            mouse_buffer[7] = 0
-        self._hid_signal.emit(mouse_buffer)
+            buffer = mouse_buffer_rel
+            bit = 5
+        if event.angleDelta().y() == 120:
+            buffer[bit] = 0x01
+        elif event.angleDelta().y() == -120:
+            buffer[bit] = 0xFF
+        else:
+            buffer[bit] = 0
+        self._hid_signal.emit(buffer)
         if self.mouse_scroll_timer.isActive():
             self.mouse_scroll_timer.stop()
         self.mouse_scroll_timer.start(100)
 
     def mouse_scroll_stop(self):
         self.mouse_scroll_timer.stop()
-        mouse_buffer[7] = 0
-        self._hid_signal.emit(mouse_buffer)
+        if not self.status["relative_mouse"]:
+            buffer = mouse_buffer
+            bit = 7
+        else:
+            buffer = mouse_buffer_rel
+            bit = 5
+        buffer[bit] = 0
+        self._hid_signal.emit(buffer)
 
     def mouse_action_timeout(self):
         if self.mouse_action_target == "menuBar":
@@ -1836,6 +1891,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.device_event_handle("hid_error")
 
     # 鼠标移动事件
+    MOUSE_ACC = 0.3
+    _last_mouse_pos = None
+
     def mouseMoveEvent(self, event):
         if self.ignore_event:
             return
@@ -1863,59 +1921,86 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if not (self.status["mouse_capture"]):
             self.setCursor(Qt.ArrowCursor)
             return
-        if self.status["hide_cursor"]:
+        if self.status["hide_cursor"] or self.status["relative_mouse"]:
             self.setCursor(Qt.BlankCursor)
         else:
             self.setCursor(Qt.ArrowCursor)
-        if not self.camera_opened:
-            x_res = self.disconnect_label.width()
-            y_res = self.disconnect_label.height()
-            width = self.disconnect_label.width()
-            height = self.disconnect_label.height()
-            # x_pos = self.disconnect_label.pos().x()
-            y_pos = self.disconnect_label.pos().y()
+        if not self.status["relative_mouse"]:
+            self._last_mouse_pos = None
+            if not self.camera_opened:
+                x_res = self.disconnect_label.width()
+                y_res = self.disconnect_label.height()
+                width = self.disconnect_label.width()
+                height = self.disconnect_label.height()
+                x_pos = self.disconnect_label.pos().x()
+                y_pos = self.disconnect_label.pos().y()
+            else:
+                x_res = self.video_config["resolution_X"]
+                y_res = self.video_config["resolution_Y"]
+                width = self.videoWidget.width()
+                height = self.videoWidget.height()
+                x_pos = self.videoWidget.pos().x()
+                y_pos = self.videoWidget.pos().y()
+            x_diff = 0
+            y_diff = 0
+            if self.video_config["keep_aspect_ratio"]:
+                cam_scale = y_res / x_res
+                finder_scale = height / width
+                if finder_scale > cam_scale:
+                    x_diff = 0
+                    y_diff = height - width * cam_scale
+                elif finder_scale < cam_scale:
+                    x_diff = width - height / cam_scale
+                    y_diff = 0
+            x_hid = (x - x_diff / 2) / (width - x_diff)
+            y_hid = ((y - y_diff / 2 - y_pos)) / (height - y_diff)
+            x_hid = max(min(x_hid, 1), 0)
+            y_hid = max(min(y_hid, 1), 0)
+            if self.status["RGB_mode"]:
+                self.set_ws2812b(x_hid * 255, y_hid * 255, (1 - x_hid) * (1 - y_hid) * 255)
+            self.statusBar().showMessage(f"X={x_hid*x_res:.0f}, Y={y_hid*y_res:.0f}")
+            t = time.perf_counter()
+            self._last_mouse_report = t
+            x_hid = int(x_hid * 0x7FFF)
+            y_hid = int(y_hid * 0x7FFF)
+            mouse_buffer[3] = x_hid & 0xFF
+            mouse_buffer[4] = x_hid >> 8
+            mouse_buffer[5] = y_hid & 0xFF
+            mouse_buffer[6] = y_hid >> 8
+            self._new_mouse_report = 1
         else:
-            x_res = self.video_config["resolution_X"]
-            y_res = self.video_config["resolution_Y"]
-            width = self.videoWidget.width()
-            height = self.videoWidget.height()
-            # x_pos = self.camerafinder.pos().x()
-            y_pos = self.videoWidget.pos().y()
-        x_diff = 0
-        y_diff = 0
-        if self.video_config["keep_aspect_ratio"]:
-            cam_scale = y_res / x_res
-            finder_scale = height / width
-            if finder_scale > cam_scale:
-                x_diff = 0
-                y_diff = height - width * cam_scale
-            elif finder_scale < cam_scale:
-                x_diff = width - height / cam_scale
-                y_diff = 0
-        x_hid = (x - x_diff / 2) / (width - x_diff)
-        y_hid = ((y - y_diff / 2 - y_pos)) / (height - y_diff)
-        x_hid = max(min(x_hid, 1), 0)
-        y_hid = max(min(y_hid, 1), 0)
-        if self.status["RGB_mode"]:
-            self.set_ws2812b(x_hid * 255, y_hid * 255, (1 - x_hid) * (1 - y_hid) * 255)
-        self.statusBar().showMessage(f"X={x_hid*x_res:.0f}, Y={y_hid*y_res:.0f}")
-        t = time.perf_counter()
-        self._last_mouse_report = t
-        x_hid = int(x_hid * 0x7FFF)
-        y_hid = int(y_hid * 0x7FFF)
-        mouse_buffer[3] = x_hid & 0xFF
-        mouse_buffer[4] = x_hid >> 8
-        mouse_buffer[5] = y_hid & 0xFF
-        mouse_buffer[6] = y_hid >> 8
-        self._new_mouse_report = True
-        # if t - self._last_mouse_report < self.MOUSE_REPORT_INTERVAL:
-        #     return
-        # self._hid_signal.emit(mouse_buffer)
+            middle_pos = self.mapToGlobal(QPoint(self.width() / 2, self.height() / 2))
+            mouse_pos = QCursor.pos()
+            if self._last_mouse_pos is not None:
+                self.rel_x += (mouse_pos.x() - self._last_mouse_pos.x()) * self.MOUSE_ACC
+                self.rel_y += (mouse_pos.y() - self._last_mouse_pos.y()) * self.MOUSE_ACC
+                self._new_mouse_report = 2
+                self._last_mouse_pos = mouse_pos
+                if abs(mouse_pos.x() - middle_pos.x()) > 25 or abs(mouse_pos.y() - middle_pos.y()) > 25:
+                    QCursor.setPos(middle_pos)
+                    self._last_mouse_pos = middle_pos
+            else:
+                self._last_mouse_pos = middle_pos
+                QCursor.setPos(middle_pos)
 
     def mouse_report_timeout(self):
-        if self._new_mouse_report:
+        if self._new_mouse_report == 1:
             self._hid_signal.emit(mouse_buffer)
-            self._new_mouse_report = False
+        elif self._new_mouse_report == 2:
+            x_hid = round(self.rel_x)
+            y_hid = round(self.rel_y)
+            self.rel_x -= x_hid
+            self.rel_y -= y_hid
+            x_hid = max(min(x_hid, 127), -127)
+            y_hid = max(min(y_hid, 127), -127)
+            x_hid += 0xFF if x_hid < 0 else 0
+            y_hid += 0xFF if y_hid < 0 else 0
+            mouse_buffer_rel[3] = x_hid & 0xFF
+            mouse_buffer_rel[4] = y_hid & 0xFF
+            self._hid_signal.emit(mouse_buffer_rel)
+            mouse_buffer_rel[3] = 0
+            mouse_buffer_rel[4] = 0
+        self._new_mouse_report = 0
 
     scan_to_b2 = {
         0x001D: 1,  # Left Control
@@ -2272,7 +2357,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.mouse_scroll_timer.start(100)
 
     def server_command_callback(self, data_type, data_payload):
-        global mouse_buffer, kb_buffer
+        global mouse_buffer, kb_buffer, mouse_buffer_rel
         if data_type == "reset_mcu":
             self.reset_keymouse(2)
         elif data_type == "reset_hid":
@@ -2280,29 +2365,54 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if not self.device_connected:
             return
         if data_type == "mouse_wheel":
-            if data_payload[0] > 0:
-                mouse_buffer[7] = 0x01
-            elif data_payload[0] < 0:
-                mouse_buffer[7] = 0xFF
+            if not self.status["relative_mouse"]:
+                buffer = mouse_buffer
+                bit = 7
             else:
-                mouse_buffer[7] = 0
-            self._hid_signal.emit(mouse_buffer)
+                buffer = mouse_buffer_rel
+                bit = 5
+            if data_payload[0] > 0:
+                buffer[bit] = 0x01
+            elif data_payload[0] < 0:
+                buffer[bit] = 0xFF
+            else:
+                buffer[bit] = 0
+            self._hid_signal.emit(buffer)
             self._wheel_signal.emit()
         elif data_type == "mouse_btn":
+            if not self.status["relative_mouse"]:
+                buffer = mouse_buffer
+            else:
+                buffer = mouse_buffer_rel
             if data_payload[1] == 2:
-                mouse_buffer[2] |= data_payload[0]
+                buffer[2] |= data_payload[0]
             elif data_payload[1] == 3:
-                mouse_buffer[2] &= ~data_payload[0]
+                buffer[2] &= ~data_payload[0]
             else:
                 mouse_buffer = [2, 0, 0, 0, 0, 0, 0, 0, 0]
-            self._hid_signal.emit(mouse_buffer)
+                mouse_buffer_rel = [7, 0, 0, 0, 0, 0, 0, 0, 0]
+                self._hid_signal.emit(mouse_buffer)
+                self._hid_signal.emit(mouse_buffer_rel)
+                return
+            self._hid_signal.emit(buffer)
         elif data_type == "mouse_pos":
+            self.status["relative_mouse"] = False
             x, y = int(data_payload[0]) & 0x7FFF, int(data_payload[1]) & 0x7FFF
             mouse_buffer[3] = x & 0xFF
             mouse_buffer[4] = x >> 8
             mouse_buffer[5] = y & 0xFF
             mouse_buffer[6] = y >> 8
             self._hid_signal.emit(mouse_buffer)
+        elif data_type == "mouse_offset":
+            self.status["relative_mouse"] = True
+            x, y = int(data_payload[0]), int(data_payload[1])
+            x = max(min(x, 127), -127)
+            y = max(min(y, 127), -127)
+            x += 0xFF if x < 0 else 0
+            y += 0xFF if y < 0 else 0
+            mouse_buffer_rel[3] = x & 0xFF
+            mouse_buffer_rel[4] = y & 0xFF
+            self._hid_signal.emit(mouse_buffer_rel)
         elif data_type == "keyboard":
             state = data_payload[1]
             key = data_payload[0]

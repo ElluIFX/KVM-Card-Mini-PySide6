@@ -22,7 +22,7 @@ new Vue({
     screenQuality: 0,
     screenFormat: '',
     showFps: false,
-    mouseSpeed: 15,
+    mouseSpeed: 0.5,
     keyAltPressed: false,
     keyCtrlPressed: false,
     toolbarVisible: true,

@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'main.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.5.2
+## Created by: Qt User Interface Compiler version 6.5.3
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -153,6 +153,9 @@ class Ui_MainWindow(object):
         self.actionAuthor.setObjectName(u"actionAuthor")
         self.actionRaw_author = QAction(MainWindow)
         self.actionRaw_author.setObjectName(u"actionRaw_author")
+        self.actionRelative_mouse = QAction(MainWindow)
+        self.actionRelative_mouse.setObjectName(u"actionRelative_mouse")
+        self.actionRelative_mouse.setCheckable(True)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.serverFrame = QFrame(self.centralwidget)
@@ -396,6 +399,7 @@ class Ui_MainWindow(object):
         self.menuMouse.addAction(self.actionCapture_mouse)
         self.menuMouse.addAction(self.actionRelease_mouse)
         self.menuMouse.addSeparator()
+        self.menuMouse.addAction(self.actionRelative_mouse)
         self.menuMouse.addAction(self.actionHide_cursor)
         self.menuTools.addAction(self.actionWindows_Device_Manager)
         self.menuTools.addAction(self.actionWindows_Audio_Setting)
@@ -497,6 +501,7 @@ class Ui_MainWindow(object):
         self.actionWeb_client.setText(QCoreApplication.translate("MainWindow", u"Web client", None))
         self.actionAuthor.setText(QCoreApplication.translate("MainWindow", u"Author: @ElluIFX", None))
         self.actionRaw_author.setText(QCoreApplication.translate("MainWindow", u"Raw author: @Jackadminx", None))
+        self.actionRelative_mouse.setText(QCoreApplication.translate("MainWindow", u"Relative mouse", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"KVM Server Settings", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Host:", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port:", None))
