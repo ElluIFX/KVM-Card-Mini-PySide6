@@ -302,6 +302,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.video_config = self.configfile["video_config"]
             self.audio_config = self.configfile["audio_config"]
             self.fullscreen_key = getattr(Qt, f'Key_{self.config["fullscreen_key"]}')
+            self.relative_mouse_speed = self.config["relative_mouse_speed"]
             if self.config["mouse_report_freq"] != 0:
                 self.mouse_report_interval = 1000 / self.config["mouse_report_freq"]
                 self.dynamic_mouse_report_interval = False
@@ -1558,7 +1559,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     char_idx = 0
 
     def send_char(self, c):
-        char_buffer = [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        char_buffer = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         shift = False
         if c == "\n":
             mapcode = self.keyboard_code["ENTER"]
@@ -1586,7 +1587,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self._hid_signal.emit(char_buffer)
         self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
         self._hid_signal.emit([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        # self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
+        self.qt_sleep(self.paste_board_dialog.spinBox_ci.value())
 
     def paste_board_stop(self):
         self.paste_board_stop_flag = True
@@ -1891,7 +1892,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.device_event_handle("hid_error")
 
     # 鼠标移动事件
-    MOUSE_ACC = 0.3
     _last_mouse_pos = None
 
     def mouseMoveEvent(self, event):
@@ -1972,8 +1972,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             middle_pos = self.mapToGlobal(QPoint(self.width() / 2, self.height() / 2))
             mouse_pos = QCursor.pos()
             if self._last_mouse_pos is not None:
-                self.rel_x += (mouse_pos.x() - self._last_mouse_pos.x()) * self.MOUSE_ACC
-                self.rel_y += (mouse_pos.y() - self._last_mouse_pos.y()) * self.MOUSE_ACC
+                self.rel_x += (mouse_pos.x() - self._last_mouse_pos.x()) * self.relative_mouse_speed
+                self.rel_y += (mouse_pos.y() - self._last_mouse_pos.y()) * self.relative_mouse_speed
                 self._new_mouse_report = 2
                 self._last_mouse_pos = mouse_pos
                 if abs(mouse_pos.x() - middle_pos.x()) > 25 or abs(mouse_pos.y() - middle_pos.y()) > 25:

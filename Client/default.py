@@ -4,8 +4,9 @@ default_config = """config:
   fullscreen_key: F11
   translation: true
   mouse_report_freq: 60
+  relative_mouse_speed: 0.3
 paste_board:
-  click_interval: 8
+  click_interval: 2
   packet_size: 1000
   packet_wait: 50
 video_config:
