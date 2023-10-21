@@ -2426,7 +2426,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             if not self.ignore_event:
                 self.paste_board_send(data_payload)
 
+    _restore_track = False
+
     def focusInEvent(self, event):
+        if self._restore_track:
+            self._restore_track = False
+            self.status["mouse_capture"] = True
         if self.hook_state:
             self.pythoncom_timer.start(5)
             self.hook_manager.HookKeyboard()
@@ -2434,6 +2439,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         super().focusInEvent(event)
 
     def focusOutEvent(self, event):
+        if self.status["mouse_capture"]:
+            self.status["mouse_capture"] = False
+            self._restore_track = True
         if self.hook_state:
             self.hook_manager.UnhookKeyboard()
             self.pythoncom_timer.stop()
