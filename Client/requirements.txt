@@ -10,3 +10,4 @@ flask-sock==0.6.0
 hidapi==0.13.1
 loguru==0.7.2
 pyqtdarktheme==2.1.0
+imageio
