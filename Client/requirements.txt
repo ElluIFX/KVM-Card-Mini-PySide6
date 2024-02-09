@@ -9,6 +9,4 @@ Werkzeug==2.3.7
 flask-sock==0.6.0
 hidapi==0.13.1
 loguru==0.7.2
-pyWinhook==1.6.2
 pyqtdarktheme==2.1.0
-pywin32==306

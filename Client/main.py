@@ -1,15 +1,12 @@
-import datetime
 import os
 import random
 import re
 import sys
 import tempfile
 import time
-from typing import List, Tuple, Union
+from typing import Tuple
 
 import hid_def
-import pythoncom
-import pyWinhook as pyHook
 import server_simple
 import yaml  # type: ignore
 from default import default_config
@@ -372,12 +369,10 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_btn2 = MyPushButton()
         self.statusbar_btn3 = MyPushButton()
         self.statusbar_btn4 = MyPushButton()
-        self.statusbar_btn5 = MyPushButton()
         self.statusbar_btn1.setPixmap(load_pixmap("keyboard-settings-outline"))
         self.statusbar_btn2.setPixmap(load_pixmap("paste"))
         self.statusbar_btn3.setPixmap(load_pixmap("capslock"))
         self.statusbar_btn4.setPixmap(load_pixmap("numkey"))
-        self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
 
         self.statusbar_icon1 = MyPushButton()
         self.statusbar_icon2 = MyPushButton()
@@ -395,7 +390,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusBar().addPermanentWidget(self.statusbar_btn2)
         self.statusBar().addPermanentWidget(self.statusbar_btn3)
         self.statusBar().addPermanentWidget(self.statusbar_btn4)
-        self.statusBar().addPermanentWidget(self.statusbar_btn5)
         self.statusBar().addPermanentWidget(self.statusbar_icon1)
         self.statusBar().addPermanentWidget(self.statusbar_icon2)
         self.statusBar().addPermanentWidget(self.statusbar_icon3)
@@ -404,7 +398,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_btn2.clicked.connect(lambda: self.statusbar_func(2))
         self.statusbar_btn3.clicked.connect(lambda: self.statusbar_func(3))
         self.statusbar_btn4.clicked.connect(lambda: self.statusbar_func(4))
-        self.statusbar_btn5.clicked.connect(lambda: self.statusbar_func(5))
         self.statusbar_icon1.clicked.connect(lambda: self.statusbar_func(6))
         self.statusbar_icon2.clicked.connect(lambda: self.statusbar_func(7))
         self.statusbar_icon3.clicked.connect(lambda: self.statusbar_func(8))
@@ -443,7 +436,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionWindows_Device_Manager.setIcon(load_icon("device"))
         self.actionNum_Keyboard.setIcon(load_icon("numkey"))
         self.actionOpen_Server_Manager.setIcon(load_icon("server"))
-        self.actionSystem_hook.setIcon(load_icon("hook"))
         self.actionRefresh_device_list.setIcon(load_icon("reload"))
         self.actionWeb_client.setIcon(load_icon("web"))
         self.actionRelative_mouse.setIcon(load_icon("relative"))
@@ -509,7 +501,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionHide_cursor.triggered.connect(self.hide_cursor_func)
         self.actionQuick_paste.triggered.connect(self.quick_paste_func)
         self.actionNum_Keyboard.triggered.connect(self.num_keyboard_func)
-        self.actionSystem_hook.triggered.connect(self.system_hook_func)
         self.actionRelative_mouse.triggered.connect(self.relative_mouse_func)
 
         self.actionOn_screen_Keyboard.triggered.connect(lambda: self.menu_tools_actions(0))
@@ -545,7 +536,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.statusbar_btn2.setFocusPolicy(Qt.NoFocus)
         self.statusbar_btn3.setFocusPolicy(Qt.NoFocus)
         self.statusbar_btn4.setFocusPolicy(Qt.NoFocus)
-        self.statusbar_btn5.setFocusPolicy(Qt.NoFocus)
         self.statusbar_icon1.setFocusPolicy(Qt.NoFocus)
         self.statusbar_icon2.setFocusPolicy(Qt.NoFocus)
         self.statusbar_icon3.setFocusPolicy(Qt.NoFocus)
@@ -588,14 +578,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self._hid_thread._event_signal.connect(self.device_event_handle)
         self._hid_thread.start()
 
-        self.hook_state = False
-        self.hook_manager = pyHook.HookManager()
-        self.hook_manager.KeyDown = self.hook_keyboard_down_event
-        self.hook_manager.KeyUp = self.hook_keyboard_up_event
-        self.pythoncom_timer = QTimer()
-        self.pythoncom_timer.timeout.connect(lambda: pythoncom.PumpWaitingMessages())
-        self.hook_pressed_keys = []
-
         self.status["init_ok"] = True
 
         self.crash_devices = []
@@ -610,29 +592,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         "Lwin": 0x015B,
         "Rwin": 0x015C,
     }
-
-    def hook_keyboard_down_event(self, event):
-        logger.debug(f"Hook: {event.Key} {event.ScanCode}")
-        if event.Key in self.code_remap:
-            scan_code = self.code_remap[event.Key]
-        else:
-            scan_code = event.ScanCode
-        if scan_code not in self.hook_pressed_keys:
-            self.hook_pressed_keys.append(scan_code)
-            self.keyPress(scan_code)
-        return False
-
-    def hook_keyboard_up_event(self, event):
-        if event.Key in self.code_remap:
-            scan_code = self.code_remap[event.Key]
-        else:
-            scan_code = event.ScanCode
-        self.keyRelease(scan_code)
-        try:
-            self.hook_pressed_keys.remove(scan_code)
-        except ValueError:
-            pass
-        return False
 
     def statusbar_func(self, act):
         if act == 1:
@@ -656,7 +615,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             else:
                 self.num_keyboard_func()
         elif act == 5:
-            self.system_hook_func()
+            pass # win hook
         elif act == 6:
             self.device_config()
         elif act == 7:
@@ -1489,19 +1448,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.status["quick_paste"] = not self.status["quick_paste"]
         self.set_checked(self.actionQuick_paste, self.status["quick_paste"])
         self.statusBar().showMessage(self.tr("Quick paste: ") + str_bool(self.status["quick_paste"]))
-
-    def system_hook_func(self):
-        self.hook_state = not self.hook_state
-        self.set_checked(self.actionSystem_hook, self.hook_state)
-        self.statusBar().showMessage(self.tr("System hook: ") + str_bool(self.hook_state))
-        if self.hook_state:
-            self.pythoncom_timer.start(5)
-            self.hook_manager.HookKeyboard()
-            self.statusbar_btn5.setPixmap(load_pixmap("hook"))
-        else:
-            self.hook_manager.UnhookKeyboard()
-            self.pythoncom_timer.stop()
-            self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
 
     def relative_mouse_func(self):
         self.status["relative_mouse"] = not self.status["relative_mouse"]
@@ -2432,20 +2378,12 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if self._restore_track:
             self._restore_track = False
             self.status["mouse_capture"] = True
-        if self.hook_state:
-            self.pythoncom_timer.start(5)
-            self.hook_manager.HookKeyboard()
-            self.statusbar_btn5.setPixmap(load_pixmap("hook"))
         super().focusInEvent(event)
 
     def focusOutEvent(self, event):
         if self.status["mouse_capture"]:
             self.status["mouse_capture"] = False
             self._restore_track = True
-        if self.hook_state:
-            self.hook_manager.UnhookKeyboard()
-            self.pythoncom_timer.stop()
-            self.statusbar_btn5.setPixmap(load_pixmap("hook-off"))
         super().focusOutEvent(event)
 
 

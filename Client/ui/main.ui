@@ -440,8 +440,6 @@
     <addaction name="actionPaste_board"/>
     <addaction name="actionQuick_paste"/>
     <addaction name="separator"/>
-    <addaction name="actionSystem_hook"/>
-    <addaction name="separator"/>
     <addaction name="actionIndicator_light"/>
     <addaction name="actionNum_Keyboard"/>
    </widget>

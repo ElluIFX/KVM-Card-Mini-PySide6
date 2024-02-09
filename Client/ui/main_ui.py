@@ -390,8 +390,6 @@ class Ui_MainWindow(object):
         self.menuKeyboard.addAction(self.actionPaste_board)
         self.menuKeyboard.addAction(self.actionQuick_paste)
         self.menuKeyboard.addSeparator()
-        self.menuKeyboard.addAction(self.actionSystem_hook)
-        self.menuKeyboard.addSeparator()
         self.menuKeyboard.addAction(self.actionIndicator_light)
         self.menuKeyboard.addAction(self.actionNum_Keyboard)
         self.menuMouse.addAction(self.actionResetMouse)

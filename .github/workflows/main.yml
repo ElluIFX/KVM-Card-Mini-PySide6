@@ -1,6 +1,6 @@
 # This is a workflow for building the kasa_cli executable on all three major platforms.
 
-name: Build-Windows 
+name: Build-Cross-Platform
 
 # Controls when the workflow will run
 on:
@@ -15,7 +15,9 @@ jobs:
   build:
     strategy:
       fail-fast: false
-    runs-on: windows-latest
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       # Check-out repository
@@ -24,9 +26,9 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9' # Version range or exact version of a Python version to use, using SemVer's version range syntax
-          architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified 
-          cache: 'pip'
+          python-version: "3.9" # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          architecture: "x64" # optional x64 or x86. Defaults to x64 if not specified 
+          cache: "pip"
           cache-dependency-path: Client/requirements.txt
 
       # Install dependencies
