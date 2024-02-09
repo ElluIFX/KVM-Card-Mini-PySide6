@@ -43,14 +43,13 @@ jobs:
           onefile: true
           standalone: true
           enable-plugins: pyside6
-          windows-icon-from-ico: ./icons/icon.ico
-          include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
-          include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd,trans_cn.qm=trans_cn.qm,qtbase_cn.qm=qtbase_cn.qm
+          windows-icon-from-ico: ./resources/icons/icon.ico
+          include-data-dir: ./resources=resources
           include-qt-plugins: multimedia
           macos-create-app-bundle: true
           disable-console: true
           macos-target-arch: universal
-          macos-app-icon: ./icons/icon.png
+          macos-app-icon: ./resources/icons/icon.png
           macos-app-mode: gui
 
       # Uploads artifacts

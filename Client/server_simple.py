@@ -11,7 +11,12 @@ path = os.path.dirname(os.path.abspath(__file__))
 
 class handler(SimpleHTTPRequestHandler):
     def __init__(self, request, client_address, server, *, directory=...) -> None:
-        super().__init__(request, client_address, server, directory=os.path.join(path, "web_s"))
+        super().__init__(
+            request,
+            client_address,
+            server,
+            directory=os.path.join(path, "resources", "web_s"),
+        )
 
 
 def check_port_available(port):
