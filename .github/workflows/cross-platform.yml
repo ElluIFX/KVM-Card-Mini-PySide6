@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest] # windows-latest,
+        os: [macos-latest] # windows-latest, ubuntu-latest,
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -40,14 +40,14 @@ jobs:
         with:
           working-directory: ./Client
           script-name: ./Mini-KVM.py
-          onefile: true
-          standalone: true
+          # onefile: true
+          # standalone: true
+          # windows-icon-from-ico: ./resources/icons/icon.ico
           enable-plugins: pyside6
-          windows-icon-from-ico: ./resources/icons/icon.ico
           include-data-dir: ./resources=resources
           include-qt-plugins: multimedia
-          macos-create-app-bundle: true
           disable-console: true
+          macos-create-app-bundle: true
           macos-target-arch: universal
           macos-app-icon: ./resources/icons/icon.png
           macos-app-mode: gui
