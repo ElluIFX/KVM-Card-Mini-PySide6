@@ -51,11 +51,9 @@ jobs:
           disable-console: true
 
       # Uploads artifacts
-      - name: "Upload Artifacts"
+      - name: "Upload Artifacts for ${{ runner.os }}"
         uses: actions/upload-artifact@v3
         with:
           name: ${{ runner.os }} Build
-          path: |
-            Client/build/*.exe
-            Client/build/*.bin
-            Client/build/*.app/**/*
+          path: | # 我也不知道别的平台安装包什么格式，所以就都上传了
+            Client/build/*
