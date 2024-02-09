@@ -40,9 +40,7 @@ jobs:
         with:
           working-directory: ./Client
           script-name: ./Mini-KVM.py
-          # onefile: true
-          # standalone: true
-          # windows-icon-from-ico: ./resources/icons/icon.ico
+          onefile: false
           enable-plugins: pyside6
           include-data-dir: ./resources=resources
           include-qt-plugins: multimedia
