@@ -15,6 +15,6 @@ try:
     from main import main
 
     main()
-except Exception as e:
+except Exception:
     error_log(traceback.format_exc())
     sys.exit(1)
