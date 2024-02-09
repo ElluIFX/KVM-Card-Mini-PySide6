@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest] # windows-latest,
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -36,7 +36,7 @@ jobs:
           pip install -r Client/requirements.txt
 
       # Build python script into a stand-alone exe
-      - uses: Nuitka/Nuitka-Action@b61097e5874925de64dc6ac9de9b94f076c9fb24
+      - uses: Nuitka/Nuitka-Action@main
         with:
           working-directory: ./Client
           script-name: ./Mini-KVM.py
@@ -47,12 +47,20 @@ jobs:
           include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
           include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd,trans_cn.qm=trans_cn.qm,qtbase_cn.qm=qtbase_cn.qm
           include-qt-plugins: multimedia
+          macos-create-app-bundle: true
           disable-console: true
+          macos-target-arch: universal
+          macos-app-icon: ./icons/icon.png
+          macos-app-mode: gui
 
       # Uploads artifacts
       - name: "Upload Artifacts for ${{ runner.os }}"
         uses: actions/upload-artifact@v3
         with:
           name: ${{ runner.os }} Build
-          path: | # 我也不知道别的平台安装包什么格式，所以就都上传了
-            Client/build/*
+          path: |
+            build/*.exe
+            build/*.bin
+            build/*.app/**/*
+          # path: | # 我也不知道别的平台安装包什么格式，所以就都上传了
+          #   Client/build/*
