@@ -56,7 +56,8 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Nuitka Crash Report
-          path: nuitka-crash-report.xml
+          path: |
+            **/nuitka-crash-report.xml
 
       # Uploads artifacts
       - name: "Upload Artifacts for ${{ runner.os }}"
