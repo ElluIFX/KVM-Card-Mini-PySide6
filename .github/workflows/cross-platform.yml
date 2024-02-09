@@ -50,6 +50,14 @@ jobs:
           macos-app-icon: ./resources/icons/icon.png
           macos-app-mode: gui
 
+      #if build fail, upload nuitka-crash-report.xml
+      - name: Upload Nuitka Crash Report
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Nuitka Crash Report
+          path: nuitka-crash-report.xml
+
       # Uploads artifacts
       - name: "Upload Artifacts for ${{ runner.os }}"
         uses: actions/upload-artifact@v3
