@@ -26,4 +26,6 @@ Simple KVM Console to USB
 
 ## Other platform
 
-Hook功能依赖 pyWinhook 包，删掉这个功能和对应的import就可以build跨平台版本
+~~Hook功能依赖 pyWinhook 包，删掉这个功能和对应的import就可以build跨平台版本~~
+
+见cross-platform分支
