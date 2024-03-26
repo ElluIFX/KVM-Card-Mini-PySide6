@@ -20,7 +20,9 @@ Simple KVM Console to USB
 
 ## Build by action
 
-懒得手动Build上传release了, 自行去[Action](https://github.com/ElluIFX/KVM-Card-Mini-PySide6/actions)里找最新的commit对应的build任务下载
+~~懒得手动Build上传release了, 自行去[Action](https://github.com/ElluIFX/KVM-Card-Mini-PySide6/actions)里找最新的commit对应的build任务下载~~
+
+*直接下release的，是新的*
 
 ## Other platform
 
