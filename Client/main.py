@@ -1,17 +1,16 @@
-import datetime
 import os
 import random
 import re
 import sys
 import tempfile
 import time
-from typing import List, Tuple, Union
+from typing import Tuple
 
 import hid_def
 import pythoncom
 import pyWinhook as pyHook
 import server_simple
-import yaml  # type: ignore
+import yaml
 from default import default_config
 from loguru import logger
 from PySide6 import *
@@ -58,7 +57,7 @@ try:
         config = yaml.safe_load(load_f)["config"]
         dark_theme = config["dark_theme"]
         translation = config["translation"]
-except Exception as e:
+except Exception:
     pass
 
 
@@ -845,7 +844,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.video_config["resolution_Y"] = (
                     self.device_setup_dialog.comboBox_2.currentText().split("x")[1]
                 )
-            except:
+            except IndexError:
                 self.video_config["resolution_X"] = 0
                 self.video_config["resolution_Y"] = 0
             self.video_config["format"] = (
@@ -887,7 +886,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 self.audio_config["audio_device_out"] = (
                     self.device_setup_dialog.comboBox_5.currentText()
                 )
-        except:
+        except Exception:
             self.video_alert(self.tr("Selected invalid device"))
             return
         logger.debug(self.video_config)
@@ -1416,8 +1415,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                     keysequence = keysequence_list[-1]
             try:
                 mapcode = self.keyboard_code[keysequence.upper()]
-            except Exception as e:
-                logger.error(f"Hid query error")
+            except Exception:
+                logger.error("Hid query error")
                 return
             self.shortcut_buffer[4] = int(mapcode, 16)  # 功能位
 
@@ -1469,7 +1468,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
     def shortcut_key_action(self, s):
         try:
             get = self.configfile["shortcut_key"]["shortcut_key_hidcode"][s]
-        except Exception as e:
+        except Exception:
             return
         self._hid_signal.emit(get)
         self.qt_sleep(10)
@@ -2179,14 +2178,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 y_res = self.disconnect_label.height()
                 width = self.disconnect_label.width()
                 height = self.disconnect_label.height()
-                x_pos = self.disconnect_label.pos().x()
+                # x_pos = self.disconnect_label.pos().x()
                 y_pos = self.disconnect_label.pos().y()
             else:
                 x_res = self.video_config["resolution_X"]
                 y_res = self.video_config["resolution_Y"]
                 width = self.videoWidget.width()
                 height = self.videoWidget.height()
-                x_pos = self.videoWidget.pos().x()
+                # x_pos = self.videoWidget.pos().x()
                 y_pos = self.videoWidget.pos().y()
             x_diff = 0
             y_diff = 0
@@ -2344,26 +2343,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self._hid_signal.emit(kb_buffer)
         return 0
 
-    def update_kb_hid(self, hid: int, state: bool):
-        if state:
-            for i in range(4, 10):
-                if kb_buffer[i] == hid:
-                    return
-                if kb_buffer[i] == 0:
-                    kb_buffer[i] = hid
-                    break
-            else:
-                logger.error("Buffer overflow")
-        else:
-            for i in range(4, 10):
-                if kb_buffer[i] == hid:
-                    kb_buffer[i] = 0
-                    break
-            else:
-                logger.error("Key not found in buffer")
-        self._hid_signal.emit(kb_buffer)
-        return 0
-
     # 键盘按下事件
     def keyPressEvent(self, event):
         if self.ignore_event:
@@ -2413,7 +2392,8 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.shortcut_status(kb_buffer)
 
     def closeEvent(self, event):
-        os._exit(0)
+        # os._exit(0)
+        pass
 
     @Slot()
     def on_btnServerSwitch_clicked(self):
@@ -2762,7 +2742,7 @@ def main():
     myWin.show()
     QTimer.singleShot(100, myWin.shortcut_status)
     clear_splash()
-    sys.exit(app.exec())
+    return app.exec()
 
 
 if __name__ == "__main__":
