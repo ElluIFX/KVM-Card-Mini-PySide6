@@ -1349,6 +1349,16 @@ int main() {
 
   mDelaymS(100);
 
+  /* 配置USB Switch GPIO */
+  GPIOB_ReadPortPin(GPIO_Pin_4) ? 1 : 0;
+  GPIOB_ModeCfg(GPIO_Pin_4, GPIO_ModeOut_PP_20mA); // NMOS
+  GPIOB_ModeCfg(GPIO_Pin_7, GPIO_ModeOut_PP_5mA);  // IN
+  GPIOA_ModeCfg(GPIO_Pin_12, GPIO_ModeOut_PP_5mA); // EN#
+  // 切换至上位机端，电源接通
+  GPIOB_SetBits(GPIO_Pin_4);
+  GPIOB_ResetBits(GPIO_Pin_7);
+  GPIOA_ResetBits(GPIO_Pin_12);
+
   uint8_t i;
   while (1) {
     if (mode != 0) {
@@ -1406,6 +1416,38 @@ void DevEP1_OUT_Deal(uint8_t l) { /* 用户可自定义 */
       memcpy(pU2EP3_IN_DataBuf, pEP1_OUT_DataBuf + 2, 4);
       U2DevEP3_IN_Deal(4);
       break;
+
+    case 0x6F:
+       if (pEP1_OUT_DataBuf[2] == 0) // 信号线悬空，电源断电
+         {
+             GPIOB_ResetBits(GPIO_Pin_4);
+             GPIOB_SetBits(GPIO_Pin_7);
+             GPIOA_SetBits(GPIO_Pin_12);
+         }
+         else if (pEP1_OUT_DataBuf[2] == 1) // 切换至上位机端，电源接通
+         {
+             GPIOB_SetBits(GPIO_Pin_4);
+             GPIOB_ResetBits(GPIO_Pin_7);
+             GPIOA_ResetBits(GPIO_Pin_12);
+         }
+         else if (pEP1_OUT_DataBuf[2] == 2) // 切换至被控端，电源接通
+         {
+             GPIOB_SetBits(GPIO_Pin_4);
+             GPIOB_SetBits(GPIO_Pin_7);
+             GPIOA_ResetBits(GPIO_Pin_12);
+         }
+         else if (pEP1_OUT_DataBuf[2] == 3) // 状态查询
+         {
+             HID_Buf[0] = 0x6F;
+             HID_Buf[2] = 3;
+             HID_Buf[3] = GPIOB_ReadPortPin(GPIO_Pin_4) ? 1 : 0;
+             HID_Buf[4] = GPIOB_ReadPortPin(GPIO_Pin_7) ? 1 : 0;
+             HID_Buf[5] = GPIOA_ReadPortPin(GPIO_Pin_12) ? 1 : 0;
+             memcpy(pEP1_IN_DataBuf, HID_Buf, 10);
+             DevEP1_IN_Deal(10);
+         }
+       break;
+
   }
 }
 

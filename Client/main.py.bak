@@ -27,7 +27,6 @@ from ui import (
     numboard_ui,
     paste_board_ui,
     shortcut_key_ui,
-    usb_switch,
 )
 
 """
@@ -173,27 +172,6 @@ def load_pixmap(name, dark_override=None) -> QPixmap:
         return QPixmap(f"{PATH}/icons/24_light/{name}.png")
 
 
-def usb_switch_progress(seconds, start_step, to_steps, progress):
-    start_time = QTime.currentTime()
-
-    if to_steps > start_step:
-        direction = True
-        step = int((seconds * 1000) / (to_steps - start_step))
-    else:
-        direction = False
-        step = int((seconds * 1000) / (start_step - to_steps))
-
-    while start_time.msecsTo(QTime.currentTime()) < seconds * 1000:
-        if start_time.msecsTo(QTime.currentTime()) % step == 0:
-            set_value = int(start_time.msecsTo(QTime.currentTime()) / step)
-            if direction:
-                set_value = start_step + set_value
-                progress.setValue(set_value)
-            else:
-                set_value = to_steps - set_value
-                progress.setValue(set_value)
-        QEventLoop().processEvents()
-    progress.setValue(to_steps)
 class MyPushButton(QPushButton):
     def __init__(self, parent=None):
         super(MyPushButton, self).__init__(parent)
@@ -245,13 +223,6 @@ class MyNumKeyboardDialog(QDialog, numboard_ui.Ui_Dialog):
         self.setFixedWidth(self.width())
 
 
-class MyUsbSwitchDialog(QDialog, usb_switch.Ui_Dialog):
-    def __init__(self, parent=None):
-        super(MyUsbSwitchDialog, self).__init__(parent)
-        self.setupUi(self)
-        self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
-        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-
 class HidThread(QThread):
     _hid_signal = Signal(list)
     _event_signal = Signal(str)
@@ -289,7 +260,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.paste_board_dialog = MyPasteBoardDialog()
         self.indicator_dialog = MyIndicatorDialog()
         self.numkeyboard_dialog = MyNumKeyboardDialog()
-        self.usb_switch_dialog = MyUsbSwitchDialog()
 
         self.shortcut_key_dialog.pushButtonSend.released.connect(
             lambda: self.shortcut_key_func(1)
@@ -514,8 +484,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionRefresh_device_list.setIcon(load_icon("reload"))
         self.actionWeb_client.setIcon(load_icon("web"))
         self.actionRelative_mouse.setIcon(load_icon("relative"))
-        self.actionUSB_Switch_Set.setIcon(load_icon("swap"))
-        self.actionUSB_Auto_Switch.setIcon(load_icon("swap-auto"))
 
         if self.video_config["keep_aspect_ratio"]:
             self.set_checked(self.actionKeep_ratio, True)
@@ -593,17 +561,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionCalculator.triggered.connect(lambda: self.menu_tools_actions(1))
         self.actionSnippingTool.triggered.connect(lambda: self.menu_tools_actions(2))
         self.actionNotepad.triggered.connect(lambda: self.menu_tools_actions(3))
-        self.actionUSB_Switch_Set.triggered.connect(self.usb_switch_func)
-        self.usb_switch_dialog.radioButton_master.clicked.connect(
-            lambda: self.usb_switch_func(1)
-        )
-        self.usb_switch_dialog.radioButton_float.clicked.connect(
-            lambda: self.usb_switch_func(2)
-        )
-        self.usb_switch_dialog.radioButton_controlled.clicked.connect(
-            lambda: self.usb_switch_func(3)
-        )
-        self.actionUSB_Auto_Switch.triggered.connect(self.usb_auto_switch)
         self.actionWindows_Audio_Setting.triggered.connect(
             lambda: self.menu_tools_actions(4)
         )
@@ -2642,143 +2599,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.server_simple_started = True
         url = f"http://127.0.0.1:{self.server_simple_port}"
         QDesktopServices.openUrl(QUrl(url))
-    def usb_switch_func(self, s):
-        if s == 1:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2c.png"))
-        elif s == 2:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-discon.png"))
-        elif s == 3:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2d.png"))
-        else:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-discon.png"))
-
-            # read status
-            reply = hid_def.hid_report([0x6F, 0, 3, 0], True)
-            if reply == 1 or reply == 2 or reply == 4:
-                self.device_event_handle("hid_error")
-                return
-            elif reply == 3:
-                # QMessageBox.critical(self, "Error", "Function not supported, please upgrade firmware or retry",
-                #                      QMessageBox.Ok)
-                QMessageBox.critical(self, "Error", "功能不支持，请升级固件后重试",
-                                     QMessageBox.Ok)
-                return
-            if reply[0] == 0x6F and reply[2] == 3:
-                # reply[3] //power
-                # reply[4] //IN
-                # reply[5] //EN#
-                if reply[5] == 1:
-                    self.usb_switch_dialog.radioButton_float.setChecked(True)
-                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-discon.png"))
-                elif reply[5] == 0 and reply[4] == 0:
-                    self.usb_switch_dialog.radioButton_master.setChecked(True)
-                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2c.png"))
-                elif reply[5] == 0 and reply[4] == 1:
-                    self.usb_switch_dialog.radioButton_controlled.setChecked(True)
-                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2d.png"))
-                else:
-                    logger.debug("Function reply unknown error")
-                    return
-            else:
-                QMessageBox.critical(self, "Error", "Function reply error", QMessageBox.Ok)
-
-            window_close_status = self.usb_switch_dialog.exec()
-            # set usb switch
-            if window_close_status == 1:
-                payload = [0x6F, 0, 0, 0]
-                if self.usb_switch_dialog.radioButton_float.isChecked():
-                    pass
-                elif self.usb_switch_dialog.radioButton_master.isChecked():
-                    payload[2] = 1
-                elif self.usb_switch_dialog.radioButton_controlled.isChecked():
-                    payload[2] = 2
-                else:
-                    # logger.debug("usb_switch unknown error")
-                    return
-                hidinfo = hid_def.hid_report(payload)
-                if hidinfo == 1 or hidinfo == 4:
-                    self.device_event_handle("hid_error")
-
-    def usb_auto_switch(self):
-        usb_switch_status_value = 0
-        progress_setLabelText = ""
-
-        # Create a progress bar window
-        progress = QProgressDialog(self)
-        progress.setWindowModality(Qt.ApplicationModal)
-        progress.setWindowTitle("Loading...")
-        progress.setLabelText("等待设备...")
-        progress.setRange(0, 100)
-        progress.setAutoClose(True)
-        progress.setCancelButton(None)
-        progress.resize(340, 160)
-        progress.setValue(0)
-        progress.show()
-
-        # read usb switch status
-        reply = hid_def.hid_report([0x6F, 0, 3, 0], True)
-        if reply == 1 or reply == 2 or reply == 4:
-            self.device_event_handle("hid_error")
-            progress.close()
-            return
-        elif reply == 3:
-            progress.close()
-            # QMessageBox.critical(self, "Error", "Function not supported, please upgrade firmware or retry",
-                                 # QMessageBox.Ok)
-            QMessageBox.critical(self, "Error", "功能不支持，请升级固件后重试",
-                                 QMessageBox.Ok)
-            return
-        if reply[0] == 0x6F and reply[2] == 3:
-            # reply[3] //power
-            # reply[4] //IN
-            # reply[5] //EN#
-            if reply[5] == 1:
-                usb_switch_status_value = 0  # float
-            elif reply[5] == 0 and reply[4] == 0:
-                usb_switch_status_value = 1  # master
-                # progress_setLabelText = "Switch to Master"
-                progress_setLabelText = "切换到主控端"
-            elif reply[5] == 0 and reply[4] == 1:
-                usb_switch_status_value = 2  # device
-                # progress_setLabelText = "Switch to Controlled"
-                progress_setLabelText = "切换到被控端"
-            else:
-                # logger.debug("Function reply unknown error")
-                progress.close()
-                return
-        else:
-            progress.close()
-            QMessageBox.critical(self, "Error", "Function reply error", QMessageBox.Ok)
-        progress.setWindowTitle(progress_setLabelText)
-        usb_switch_progress(0.5, 0, 20, progress)
-
-        # Send command to disconnect USB device
-        payload = [0x6F, 0, 0, 0]
-        hidinfo = hid_def.hid_report(payload)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-        # progress.setLabelText("Disconnect the USB port connection")
-        progress.setLabelText("断开USB切换器接口连接...")
-        usb_switch_progress(1.5, 20, 60, progress)
-
-        # Connected to the other end USB device
-        # The suspended state defaults to the main USB device
-        if usb_switch_status_value == 0:  # float
-            payload[2] = 1
-        # Switch to another USB device
-        elif usb_switch_status_value == 1:  # master
-            payload[2] = 2
-        elif usb_switch_status_value == 2:  # device
-            payload[2] = 1
-        else:
-            # logger.debug("usb_switch unknown error")
-            return
-        hidinfo = hid_def.hid_report(payload)
-        if hidinfo == 1 or hidinfo == 4:
-            self.device_event_handle("hid_error")
-        # progress.setLabelText("Switch the USB port...  ")
-        progress.setLabelText("切换到另外一个接口...  ")
-        usb_switch_progress(0.5, 60, 100, progress)
 
     def set_log_text(self, text):
         self.serverLogEdit.setText(text)

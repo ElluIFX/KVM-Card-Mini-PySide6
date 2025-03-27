@@ -248,6 +248,7 @@
             </property>
             <property name="font">
              <font>
+              <weight>50</weight>
               <bold>false</bold>
              </font>
             </property>
@@ -294,6 +295,7 @@
             </property>
             <property name="font">
              <font>
+              <weight>50</weight>
               <bold>false</bold>
              </font>
             </property>
@@ -340,6 +342,7 @@
             </property>
             <property name="font">
              <font>
+              <weight>50</weight>
               <bold>false</bold>
              </font>
             </property>
@@ -403,7 +406,7 @@
      <x>0</x>
      <y>0</y>
      <width>842</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_video_menu">
@@ -467,6 +470,9 @@
     <addaction name="actionCalculator"/>
     <addaction name="actionSnippingTool"/>
     <addaction name="actionNotepad"/>
+    <addaction name="separator"/>
+    <addaction name="actionUSB_Switch_Set"/>
+    <addaction name="actionUSB_Auto_Switch"/>
    </widget>
    <widget class="QMenu" name="menuVideo">
     <property name="title">
@@ -849,6 +855,16 @@
    </property>
    <property name="text">
     <string>Relative mouse</string>
+   </property>
+  </action>
+  <action name="actionUSB_Switch_Set">
+   <property name="text">
+    <string>USB Switch Set</string>
+   </property>
+  </action>
+  <action name="actionUSB_Auto_Switch">
+   <property name="text">
+    <string>USB Auto Switch</string>
    </property>
   </action>
  </widget>
