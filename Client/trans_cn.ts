@@ -418,22 +418,22 @@ del</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="ui/usb_switch.ui" line="20"/>
+        <location filename="ui/usb_switch.ui" line="23"/>
         <source>USB Switch</source>
         <translation>USB切换器</translation>
     </message>
     <message>
-        <location filename="ui/usb_switch.ui" line="26"/>
+        <location filename="ui/usb_switch.ui" line="29"/>
         <source>graphicsView</source>
         <translation>图片显示</translation>
     </message>
     <message>
-        <location filename="ui/usb_switch.ui" line="33"/>
+        <location filename="ui/usb_switch.ui" line="36"/>
         <source>Master</source>
-        <translation>连接到主控端</translation>
+        <translation>切换至主控端</translation>
     </message>
     <message>
-        <location filename="ui/usb_switch.ui" line="40"/>
+        <location filename="ui/usb_switch.ui" line="43"/>
         <source>Float</source>
         <translation>接口悬空</translation>
     </message>
@@ -446,10 +446,10 @@ del</source>
         <translation type="vanished">接口悬空</translation>
     </message>
     <message>
-        <location filename="ui/usb_switch.ui" line="47"/>
+        <location filename="ui/usb_switch.ui" line="50"/>
         <source>Controlled</source>
         <oldsource>Controlled           </oldsource>
-        <translation>连接到被控端</translation>
+        <translation>切换至被控端</translation>
     </message>
 </context>
 <context>
@@ -847,413 +847,413 @@ del</source>
 <context>
     <name>MyMainWindow</name>
     <message>
-        <location filename="main.py" line="382"/>
-        <location filename="main.py" line="852"/>
-        <location filename="main.py" line="1025"/>
-        <location filename="main.py" line="1187"/>
+        <location filename="main.py" line="386"/>
+        <location filename="main.py" line="857"/>
+        <location filename="main.py" line="1030"/>
+        <location filename="main.py" line="1192"/>
         <source>Error</source>
         <extracomment>{function}:{line}</extracomment>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="main.py" line="386"/>
+        <location filename="main.py" line="390"/>
         <source>Check the config.yaml and restart the program
 or delete the config.yaml to reset the config file.</source>
         <translation>检查配置文件（config.yaml）并重启程序
 或删除配置文件，程序将重新生成。</translation>
     </message>
     <message>
-        <location filename="main.py" line="779"/>
-        <location filename="main.py" line="2417"/>
+        <location filename="main.py" line="784"/>
+        <location filename="main.py" line="2422"/>
         <source>Mouse capture off</source>
         <translation>鼠标捕捉关闭</translation>
     </message>
     <message>
-        <location filename="main.py" line="853"/>
-        <location filename="main.py" line="1026"/>
-        <location filename="main.py" line="1188"/>
+        <location filename="main.py" line="858"/>
+        <location filename="main.py" line="1031"/>
+        <location filename="main.py" line="1193"/>
         <source>Close KVM Server before local connection</source>
         <translation>在本地连接前必须关闭KVM服务器页面</translation>
     </message>
     <message>
-        <location filename="main.py" line="933"/>
+        <location filename="main.py" line="938"/>
         <source>Selected invalid device</source>
         <translation>选择设备无效</translation>
     </message>
     <message>
-        <location filename="main.py" line="959"/>
-        <location filename="main.py" line="1032"/>
+        <location filename="main.py" line="964"/>
+        <location filename="main.py" line="1037"/>
         <source>Target video device not found</source>
         <translation>目标视频设备未找到</translation>
     </message>
     <message>
-        <location filename="main.py" line="986"/>
+        <location filename="main.py" line="991"/>
         <source>Device disconnected</source>
         <translation>设备已断开连接</translation>
     </message>
     <message>
-        <location filename="main.py" line="1013"/>
+        <location filename="main.py" line="1018"/>
         <source>Device Error</source>
         <translation>设备错误</translation>
     </message>
     <message>
-        <location filename="main.py" line="1046"/>
+        <location filename="main.py" line="1051"/>
         <source>Unsupported combination of resolution and format</source>
         <translation>不支持的分辨率和图像格式组合</translation>
     </message>
     <message>
-        <location filename="main.py" line="1073"/>
+        <location filename="main.py" line="1078"/>
         <source>Audio device not found</source>
         <translation>音频设备未找到</translation>
     </message>
     <message>
-        <location filename="main.py" line="1081"/>
+        <location filename="main.py" line="1086"/>
         <source>Video device connect failed</source>
         <translation>视频设备连接失败</translation>
     </message>
     <message>
-        <location filename="main.py" line="1149"/>
+        <location filename="main.py" line="1154"/>
         <source>Video save location</source>
         <translation>选择视频保存位置</translation>
     </message>
     <message>
-        <location filename="main.py" line="1158"/>
+        <location filename="main.py" line="1163"/>
         <source>Stop recording</source>
         <translation>停止录制</translation>
     </message>
     <message>
-        <location filename="main.py" line="1159"/>
+        <location filename="main.py" line="1164"/>
         <source>Video recording started</source>
         <translation>视频录制已开始</translation>
     </message>
     <message>
-        <location filename="main.py" line="1163"/>
+        <location filename="main.py" line="1168"/>
         <source>Record video</source>
         <translation>视频录制</translation>
     </message>
     <message>
-        <location filename="main.py" line="1164"/>
+        <location filename="main.py" line="1169"/>
         <source>Video recording stopped</source>
         <translation>视频录制已停止</translation>
     </message>
     <message>
-        <location filename="main.py" line="1170"/>
+        <location filename="main.py" line="1175"/>
         <source>Save Frame</source>
         <translation>选择截图保存位置</translation>
     </message>
     <message>
-        <location filename="main.py" line="1176"/>
+        <location filename="main.py" line="1181"/>
         <source>Image saved to</source>
         <translation>截图已保存至</translation>
     </message>
     <message>
-        <location filename="main.py" line="1180"/>
+        <location filename="main.py" line="1185"/>
         <source>Video Error</source>
         <translation>视频设备错误</translation>
     </message>
     <message>
-        <location filename="main.py" line="1236"/>
+        <location filename="main.py" line="1241"/>
         <source>Mouse capture on (Press Right-Ctrl to release)</source>
         <translation>鼠标捕捉启用 （按下右 Ctrl 键释放鼠标）</translation>
     </message>
     <message>
-        <location filename="main.py" line="1293"/>
+        <location filename="main.py" line="1298"/>
         <source>Keep aspect ratio: </source>
         <translation>按比例缩放： </translation>
     </message>
     <message>
-        <location filename="main.py" line="1355"/>
+        <location filename="main.py" line="1360"/>
         <source>Save shortcut key</source>
         <translation>保存快捷键</translation>
     </message>
     <message>
-        <location filename="main.py" line="1356"/>
+        <location filename="main.py" line="1361"/>
         <source>Shortcut name:</source>
         <translation>快捷键名称：</translation>
     </message>
     <message>
-        <location filename="main.py" line="1525"/>
+        <location filename="main.py" line="1530"/>
         <source>Keyboard Mouse connect error, try to &lt;Reload Key/Mouse&gt;</source>
         <translation>键鼠设备连接错误，请尝试重置设备</translation>
     </message>
     <message>
-        <location filename="main.py" line="1532"/>
+        <location filename="main.py" line="1537"/>
         <source>Video device error</source>
         <translation>视频设备错误</translation>
     </message>
     <message>
-        <location filename="main.py" line="1537"/>
+        <location filename="main.py" line="1542"/>
         <source>Video device close</source>
         <translation>视频设备断开</translation>
     </message>
     <message>
-        <location filename="main.py" line="1545"/>
+        <location filename="main.py" line="1550"/>
         <source>Keyboard Mouse initialization error</source>
         <translation>键鼠设备初始化失败</translation>
     </message>
     <message>
-        <location filename="main.py" line="1550"/>
+        <location filename="main.py" line="1555"/>
         <source>Keyboard Mouse initialization done</source>
         <translation>键鼠设备初始化成功</translation>
     </message>
     <message>
-        <location filename="main.py" line="1559"/>
+        <location filename="main.py" line="1564"/>
         <source>Video device connected</source>
         <translation>视频设备已连接</translation>
     </message>
     <message>
-        <location filename="main.py" line="1567"/>
-        <location filename="main.py" line="1574"/>
+        <location filename="main.py" line="1572"/>
+        <location filename="main.py" line="1579"/>
         <source>Device disconnect</source>
         <translation>设备连接断开</translation>
     </message>
     <message>
-        <location filename="main.py" line="1635"/>
+        <location filename="main.py" line="1640"/>
         <source>Indicator reply error</source>
         <translation>指示灯状态返回异常</translation>
     </message>
     <message>
-        <location filename="main.py" line="1721"/>
+        <location filename="main.py" line="1726"/>
         <source>Quick paste: </source>
         <translation>快速粘贴： </translation>
     </message>
     <message>
-        <location filename="main.py" line="1728"/>
+        <location filename="main.py" line="1733"/>
         <source>System hook: </source>
         <translation>系统按键拦截： </translation>
     </message>
     <message>
-        <location filename="main.py" line="1744"/>
+        <location filename="main.py" line="1749"/>
         <source>Relative mouse: </source>
         <translation>相对鼠标模式： </translation>
     </message>
     <message>
-        <location filename="main.py" line="1794"/>
+        <location filename="main.py" line="1799"/>
         <source>Select file</source>
         <translation>选择文件</translation>
     </message>
     <message>
-        <location filename="main.py" line="1868"/>
+        <location filename="main.py" line="1873"/>
         <source>Paste board - Sending</source>
         <translation>剪贴板 - 发送中</translation>
     </message>
     <message>
-        <location filename="main.py" line="1874"/>
-        <location filename="main.py" line="1939"/>
+        <location filename="main.py" line="1879"/>
+        <location filename="main.py" line="1944"/>
         <source>Paste board - Error occurred</source>
         <translation>剪贴板 - 发送错误</translation>
     </message>
     <message>
-        <location filename="main.py" line="1879"/>
-        <location filename="main.py" line="1945"/>
+        <location filename="main.py" line="1884"/>
+        <location filename="main.py" line="1950"/>
         <source>Paste board - Force stopped</source>
         <translation>剪贴板 - 已停止</translation>
     </message>
     <message>
-        <location filename="main.py" line="1882"/>
-        <location filename="main.py" line="1955"/>
+        <location filename="main.py" line="1887"/>
+        <location filename="main.py" line="1960"/>
         <source>Paste board - Finished</source>
         <translation>剪贴板 - 发送完成</translation>
     </message>
     <message>
-        <location filename="main.py" line="1913"/>
+        <location filename="main.py" line="1918"/>
         <source>Paste board - Sending file</source>
         <translation>剪贴板 - 文件发送中</translation>
     </message>
     <message>
-        <location filename="main.py" line="1979"/>
+        <location filename="main.py" line="1984"/>
         <source>RGB Indicator: </source>
         <translation>RGB指示灯： </translation>
     </message>
     <message>
-        <location filename="main.py" line="1993"/>
+        <location filename="main.py" line="1998"/>
         <source>Fullscreen</source>
         <translation>全屏</translation>
     </message>
     <message>
-        <location filename="main.py" line="1996"/>
+        <location filename="main.py" line="2001"/>
         <source>Press Ctrl+Alt+Shift+</source>
         <translation>按下 Ctrl+Alt+Shift+</translation>
     </message>
     <message>
-        <location filename="main.py" line="1998"/>
+        <location filename="main.py" line="2003"/>
         <source>to toggle fullscreen</source>
         <translation>来切换全屏模式</translation>
     </message>
     <message>
-        <location filename="main.py" line="1999"/>
+        <location filename="main.py" line="2004"/>
         <source>
 (Key </source>
         <translation>
 （按键 </translation>
     </message>
     <message>
-        <location filename="main.py" line="2001"/>
+        <location filename="main.py" line="2006"/>
         <source>can be changed in config.yaml)</source>
         <translation>可以在配置文件中修改）</translation>
     </message>
     <message>
-        <location filename="main.py" line="2002"/>
+        <location filename="main.py" line="2007"/>
         <source>
 Stay cursor at left top corner to show toolbar</source>
         <translation>
 保持鼠标指针在屏幕边角来显示工具栏</translation>
     </message>
     <message>
-        <location filename="main.py" line="2004"/>
+        <location filename="main.py" line="2009"/>
         <source>I know it, don&apos;t show again</source>
         <translation>我知道了，不要再提示</translation>
     </message>
     <message>
-        <location filename="main.py" line="2032"/>
+        <location filename="main.py" line="2037"/>
         <source>Hide cursor when capture mouse: </source>
         <translation>隐藏鼠标指针： </translation>
     </message>
     <message>
-        <location filename="main.py" line="2043"/>
+        <location filename="main.py" line="2048"/>
         <source>Window always on top: </source>
         <translation>窗口置顶： </translation>
     </message>
     <message>
-        <location filename="main.py" line="2067"/>
+        <location filename="main.py" line="2072"/>
         <source>Dark theme</source>
         <translation>夜间主题</translation>
     </message>
     <message>
-        <location filename="main.py" line="2070"/>
+        <location filename="main.py" line="2075"/>
         <source>Theme change will take affect at next start, restart now?</source>
         <translation>主题修改将在下一次启动时生效，是否现在重启程序？</translation>
     </message>
     <message>
-        <location filename="main.py" line="2071"/>
+        <location filename="main.py" line="2076"/>
         <source>Restart</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location filename="main.py" line="2072"/>
+        <location filename="main.py" line="2077"/>
         <source>Not now</source>
         <translation>稍后再说</translation>
     </message>
     <message>
-        <location filename="main.py" line="2108"/>
+        <location filename="main.py" line="2113"/>
         <source>Double click to capture mouse</source>
         <translation>双击鼠标左键启用鼠标捕捉</translation>
     </message>
     <message>
-        <location filename="main.py" line="2408"/>
+        <location filename="main.py" line="2413"/>
         <source>Clipboard is empty</source>
         <translation>剪贴板是空的</translation>
     </message>
     <message>
-        <location filename="main.py" line="2411"/>
+        <location filename="main.py" line="2416"/>
         <source>Quick pasting</source>
         <translation>正在快速粘贴</translation>
     </message>
     <message>
-        <location filename="main.py" line="2412"/>
+        <location filename="main.py" line="2417"/>
         <source>characters</source>
         <translation>个字符</translation>
     </message>
     <message>
-        <location filename="main.py" line="2458"/>
-        <location filename="main.py" line="2478"/>
-        <location filename="main.py" line="2576"/>
-        <location filename="main.py" line="2598"/>
-        <location filename="main.py" line="2623"/>
-        <location filename="main.py" line="2633"/>
+        <location filename="main.py" line="2463"/>
+        <location filename="main.py" line="2483"/>
+        <location filename="main.py" line="2581"/>
+        <location filename="main.py" line="2603"/>
+        <location filename="main.py" line="2628"/>
+        <location filename="main.py" line="2638"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="main.py" line="2458"/>
+        <location filename="main.py" line="2463"/>
         <source>Invalid device</source>
         <translation>无效的设备</translation>
     </message>
     <message>
-        <location filename="main.py" line="2494"/>
+        <location filename="main.py" line="2499"/>
         <source>HTTP Authentication</source>
         <translation>HTTP身份验证</translation>
     </message>
     <message>
-        <location filename="main.py" line="2497"/>
+        <location filename="main.py" line="2502"/>
         <source>Authentication is enabled</source>
         <translation>身份验证已启用</translation>
     </message>
     <message>
-        <location filename="main.py" line="2499"/>
+        <location filename="main.py" line="2504"/>
         <source>Disable</source>
         <translation>禁用</translation>
     </message>
     <message>
-        <location filename="main.py" line="2501"/>
+        <location filename="main.py" line="2506"/>
         <source>Authentication is disabled</source>
         <translation>身份验证已禁用</translation>
     </message>
     <message>
-        <location filename="main.py" line="2502"/>
+        <location filename="main.py" line="2507"/>
         <source>Enable</source>
         <translation>启用</translation>
     </message>
     <message>
-        <location filename="main.py" line="2503"/>
-        <location filename="main.py" line="2517"/>
+        <location filename="main.py" line="2508"/>
         <location filename="main.py" line="2522"/>
+        <location filename="main.py" line="2527"/>
         <source>Add User</source>
         <translation>添加用户</translation>
     </message>
     <message>
-        <location filename="main.py" line="2504"/>
+        <location filename="main.py" line="2509"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="main.py" line="2510"/>
+        <location filename="main.py" line="2515"/>
         <source>Authentication enabled</source>
         <translation>身份验证已启用</translation>
     </message>
     <message>
-        <location filename="main.py" line="2512"/>
+        <location filename="main.py" line="2517"/>
         <source>Authentication disabled</source>
         <translation>身份验证已禁用</translation>
     </message>
     <message>
-        <location filename="main.py" line="2514"/>
+        <location filename="main.py" line="2519"/>
         <source>No user found, remember to add one</source>
         <translation>未找到任何用户，请添加至少一个用户</translation>
     </message>
     <message>
-        <location filename="main.py" line="2517"/>
+        <location filename="main.py" line="2522"/>
         <source>Username:</source>
         <translation>用户名：</translation>
     </message>
     <message>
-        <location filename="main.py" line="2522"/>
+        <location filename="main.py" line="2527"/>
         <source>Password:</source>
         <translation>密码：</translation>
     </message>
     <message>
-        <location filename="main.py" line="2577"/>
+        <location filename="main.py" line="2582"/>
         <source>Video device is opened, close it?</source>
         <translation>视频设备已打开，是否关闭？</translation>
     </message>
     <message>
-        <location filename="main.py" line="2589"/>
+        <location filename="main.py" line="2594"/>
         <source>Close Server Manager</source>
         <translation>关闭服务器管理界面</translation>
     </message>
     <message>
-        <location filename="main.py" line="2611"/>
+        <location filename="main.py" line="2616"/>
         <source>Open Server Manager</source>
         <translation>打开服务器管理界面</translation>
     </message>
     <message>
-        <location filename="main.py" line="2624"/>
+        <location filename="main.py" line="2629"/>
         <source>Video device is opened, close it first?</source>
         <translation>视频设备已打开，是否关闭？</translation>
     </message>
     <message>
-        <location filename="main.py" line="2599"/>
-        <location filename="main.py" line="2634"/>
+        <location filename="main.py" line="2604"/>
+        <location filename="main.py" line="2639"/>
         <source>Server is running, stop it?</source>
         <translation>服务器正在运行，是否停止？</translation>
     </message>
