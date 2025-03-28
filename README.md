@@ -27,9 +27,9 @@ Simple KVM Console to USB
 
 ## Screenshot 
 
-![Screenshot1](.\Docs\Images\Screenshot1.png)
+![Screenshot1](./Docs/Images/Screenshot1.png)
 
-![Screenshot1](.\Docs\Images\Screenshot2.png)
+![Screenshot1](./Docs/Images/Screenshot2.png)
 
 
 ## Other platform
