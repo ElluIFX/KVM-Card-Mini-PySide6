@@ -2650,14 +2650,14 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
 
     def usb_switch_func(self, s):
         if s == 1:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2c.png"))
+            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-2c.png"))
         elif s == 2:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-discon.png"))
+            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-discon.png"))
         elif s == 3:
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2d.png"))
+            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-2d.png"))
         else:
 
-            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-discon.png"))
+            self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-discon.png"))
 
             # read status
             reply = hid_def.hid_report([0x6F, 0, 3, 0], True)
@@ -2676,13 +2676,13 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
                 # reply[5] //EN#
                 if reply[5] == 1:
                     self.usb_switch_dialog.radioButton_float.setChecked(True)
-                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-discon.png"))
+                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-discon.png"))
                 elif reply[5] == 0 and reply[4] == 0:
                     self.usb_switch_dialog.radioButton_master.setChecked(True)
-                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2c.png"))
+                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-2c.png"))
                 elif reply[5] == 0 and reply[4] == 1:
                     self.usb_switch_dialog.radioButton_controlled.setChecked(True)
-                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap("Data/Images/kvmcard-2d.png"))
+                    self.usb_switch_dialog.graphics_label.setPixmap(QPixmap(f"{PATH}/data/Images/kvmcard-2d.png"))
                 else:
                     logger.debug("Function reply unknown error")
                     return
