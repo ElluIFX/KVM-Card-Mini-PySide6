@@ -18,6 +18,10 @@ Simple KVM Console to USB
 
 因为git的问题, 文件夹Client/data似乎没自动从Data变更为data, 请手动改名再编译, 如果直接用release文件的话可以无视, 这个版本把data编译进单文件了, 只需要直接运行exe即可
 
+## TIPS
+
+- 如果需要寻找一个非自制获取硬件的方案, 可参考[binnehot的文章](https://github.com/binnehot/KVM_over_USB_Q05)
+- 如果你正尝试在linux或macos上运行本项目, 可参考[#4](https://github.com/ElluIFX/KVM-Card-Mini-PySide6/issues/4)中的已知问题解决方法, 精力有限暂时无法处理跨平台适配问题
 
 ## Build by action
 
