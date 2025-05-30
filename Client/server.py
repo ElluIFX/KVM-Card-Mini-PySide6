@@ -14,6 +14,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     send_from_directory,
     url_for,
 )
@@ -118,13 +119,25 @@ def login():
     args = request.args.copy()
     red = args.pop("r", None)
     _ = args.pop("s", None)
-    if red not in ["http_index", "http_stream", "http_snapshot", "http_info", "http_config"]:
+    if red not in [
+        "http_index",
+        "http_stream",
+        "http_snapshot",
+        "http_info",
+        "http_config",
+    ]:
         return Response(f"Invalid redirect: {red}", status=401)
     secret = generate_secret()
     broswer_id = get_browser_uuid()
     logger.info(f"Login: {auth.current_user()} - {secret} - {broswer_id}")
     auth_secrets[secret] = broswer_id
     return redirect(url_for(red, s=secret, **args))
+
+
+@app.route("/<path:filename>.mjs")
+def serve_mjs(filename):
+    logger.info(f"Serve mjs: {filename}")
+    return send_file(f"web/{filename}.mjs", mimetype="application/javascript")
 
 
 def check_auth_secret():
@@ -310,10 +323,18 @@ class KVM_Server(QObject):
             self.buffer1.seek(0)
             if self.config["video"]["quality"] != 0:
                 image.save(self.buffer1, "jpg", self.config["video"]["quality"])
-                yield (b"Content-Type: data/jpeg\r\n\r\n" + bytes(self.buffer1.data()) + b"\r\n\r\n--frame\r\n")
+                yield (
+                    b"Content-Type: data/jpeg\r\n\r\n"
+                    + bytes(self.buffer1.data())
+                    + b"\r\n\r\n--frame\r\n"
+                )
             else:
                 image.save(self.buffer1, "png")
-                yield (b"Content-Type: data/png\r\n\r\n" + bytes(self.buffer1.data()) + b"\r\n\r\n--frame\r\n")
+                yield (
+                    b"Content-Type: data/png\r\n\r\n"
+                    + bytes(self.buffer1.data())
+                    + b"\r\n\r\n--frame\r\n"
+                )
 
     def get_snapshot(self):
         self.image_event.wait()
@@ -327,7 +348,9 @@ class KVM_Server(QObject):
         if self.auth_required:
             if not check_auth_secret():
                 return redirect(url_for("login", r="http_stream"))
-        return Response(self.get_stream(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        return Response(
+            self.get_stream(), mimetype="multipart/x-mixed-replace; boundary=frame"
+        )
 
     def http_snapshot(self):
         if self.auth_required:
@@ -349,7 +372,8 @@ class KVM_Server(QObject):
             res is not None
             and fmt is not None
             and (
-                res != f"{self.config['video']['width']}x{self.config['video']['height']}"
+                res
+                != f"{self.config['video']['width']}x{self.config['video']['height']}"
                 or fmt != self.config["video"]["format"]
             )
         ):
@@ -358,7 +382,11 @@ class KVM_Server(QObject):
             cfmt = None
             for i in self.camera_info.videoFormats():
                 f = i.pixelFormat().name.split("_")[1]
-                if i.resolution().width() == video_width and i.resolution().height() == video_height and f == fmt:
+                if (
+                    i.resolution().width() == video_width
+                    and i.resolution().height() == video_height
+                    and f == fmt
+                ):
                     cfmt = i
             if cfmt is not None:
                 self.camera.stop()
@@ -369,7 +397,10 @@ class KVM_Server(QObject):
                 self.config["video"]["format"] = fmt
         if show_fps is not None:
             self.config["video"]["show_fps"] = (
-                show_fps == "true" or show_fps == "1" or show_fps == "True" or show_fps is True
+                show_fps == "true"
+                or show_fps == "1"
+                or show_fps == "True"
+                or show_fps is True
             )
         if quality is not None:
             video_quality = int(quality)
