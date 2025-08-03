@@ -43,8 +43,14 @@ jobs:
           enable-plugins: pyside6
           windows-console-mode: disable
           windows-icon-from-ico: ./icons/icon.ico
-          include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
-          include-data-files: trans_cn.qm=trans_cn.qm,qtbase_cn.qm=qtbase_cn.qm
+          include-data-dir: |
+            ./icons=icons
+            ./web=web
+            ./web_s=web_s
+            ./Data=data
+          include-data-files: |
+            ./trans_cn.qm=trans_cn.qm
+            ./qtbase_cn.qm=qtbase_cn.qm
           include-qt-plugins: multimedia
 
       # Uploads artifacts
