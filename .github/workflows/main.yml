@@ -22,9 +22,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9' # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          python-version: '3.13' # Version range or exact version of a Python version to use, using SemVer's version range syntax
           architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified 
           cache: 'pip'
           cache-dependency-path: Client/requirements.txt
@@ -32,22 +32,26 @@ jobs:
       # Install dependencies
       - name: Install Dependencies
         run: |
-          pip install -r Client/requirements.txt
+          pip install -r Client/requirements.txt --ignore-requires-python
 
       # Build python script into a stand-alone exe
-      - uses: Nuitka/Nuitka-Action@b61097e5874925de64dc6ac9de9b94f076c9fb24
+      - uses: Nuitka/Nuitka-Action@v1.3
         with:
           working-directory: ./Client
           script-name: ./Mini-KVM.py
-          onefile: true
-          standalone: true
+          mode: app
           enable-plugins: pyside6
+          windows-console-mode: disable
           windows-icon-from-ico: ./icons/icon.ico
-          include-data-dir: ./icons=icons,./web=web,./web_s=web_s,./Data=data
-          include-data-files: ./_cpyHook.cp39-win_amd64.pyd=_cpyHook.cp39-win_amd64.pyd,trans_cn.qm=trans_cn.qm,qtbase_cn.qm=qtbase_cn.qm
+          include-data-dir: |
+            ./icons=icons
+            ./web=web
+            ./web_s=web_s
+            ./Data=data
+          include-data-files: |
+            ./trans_cn.qm=trans_cn.qm
+            ./qtbase_cn.qm=qtbase_cn.qm
           include-qt-plugins: multimedia
-          disable-console: true
-          enable-console: false
 
       # Uploads artifacts
       - name: "Upload Artifacts"

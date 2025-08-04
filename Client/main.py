@@ -1428,7 +1428,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             if [s for s in shift_symbol if keysequence in s]:
                 keysequence = "Shift+" + keysequence
 
-            if len(re.findall("\+", keysequence)) == 0:  # 没有匹配到+号，不是组合键
+            if len(re.findall("\\+", keysequence)) == 0:  # 没有匹配到+号，不是组合键
                 self.shortcut_key_dialog.keySequenceEdit.setKeySequence(keysequence)
             else:
                 if keysequence != "+":
