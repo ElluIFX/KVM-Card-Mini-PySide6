@@ -16,10 +16,41 @@ const uint8_t MyDevDescr[] = {0x12, 0x01,       0x10, 0x01, 0x00, 0x00,
 // 配置描述符
 const uint8_t MyCfgDescr[] = {
     0x09, 0x02, 0x29, 0x00, 0x01, 0x01, 0x04, 0xA0, 0x64,  // 配置描述符
-    0x09, 0x04, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x05,  // 接口描述符
+    0x09, 0x04, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x05,  // 接口描述符 (Vendor Specific for WebUSB)
     0x09, 0x21, 0x00, 0x01, 0x00, 0x01, 0x22, 0x22, 0x00,  // HID类描述符
     0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01,              // 端点描述符
     0x07, 0x05, 0x01, 0x03, 0x40, 0x00, 0x01               // 端点描述符
+};
+
+/* BOS Descriptor (Binary Object Store) for WebUSB support */
+const uint8_t USB_BOSDescr[] = {
+    // BOS Header
+    0x05,                   // bLength (5 bytes)
+    0x0F,                   // bDescriptorType: BOS
+    0x1D, 0x00,             // wTotalLength (29 bytes: 5 header + 24 platform cap)
+    0x01,                   // bNumDeviceCaps: 1
+
+    // WebUSB Platform Capability Descriptor
+    0x18,                   // bLength (24 bytes)
+    0x10,                   // bDescriptorType: Device Capability
+    0x05,                   // bDevCapabilityType: Platform
+    0x00,                   // bReserved
+    // PlatformCapabilityUUID {3408b638-09a9-47a0-8bfd-a0768815b665}
+    0x38, 0xB6, 0x08, 0x34, // UUID bytes 0-3 (little-endian)
+    0xA9, 0x09,             // UUID bytes 4-5
+    0xA0, 0x47,             // UUID bytes 6-7
+    0x8B, 0xFD,             // UUID bytes 8-9
+    0xA0, 0x76, 0x88, 0x15, 0xB6, 0x65, // UUID bytes 10-15
+    0x00, 0x01,             // bcdVersion: 1.00 (WebUSB 1.0)
+    0x01,                   // bVendorCode: 0x01
+    0x00                    // iLandingPage: 0 (no landing page)
+};
+
+// WebUSB URL Descriptor (empty URL for index 0 / non-existent requests)
+const uint8_t USB_URLDescr[] = {
+    0x03,                   // bLength
+    0x03,                   // bDescriptorType: URL
+    0xFF,                   // bScheme: no URL scheme
 };
 /*字符串描述符略*/
 /*HID类报表描述符*/
@@ -393,7 +424,27 @@ void USB_DevTransProcess(void)  // USB设备传输中断处理
         if (pSetupReqPak->bRequestType &
             0x40)  // 取得命令中的某一位，判断是否为0，不为零进if语句
         {
-          /* 厂商请求 */
+          /* 厂商请求 - WebUSB vendor requests */
+          if (SetupReqCode == WEBUSB_VENDOR_CODE)  // bRequest == bVendorCode (0x01)
+          {
+            switch (pSetupReqPak->wIndex & 0xFF)  // Low byte of wIndex
+            {
+              case WEBUSB_GET_URL:  // 0x02 - GET_URL
+                // Return URL descriptor; wValue contains URL index
+                pDescr = USB_URLDescr;
+                len = USB_URLDescr[0];
+                if (SetupReqLen > len) SetupReqLen = len;
+                break;
+
+              default:
+                errflag = 0xFF;  // Unsupported WebUSB sub-request
+                break;
+            }
+          }
+          else
+          {
+            errflag = 0xFF;  // Unsupported vendor request
+          }
         } else if (pSetupReqPak->bRequestType &
                    0x20)  // 取得命令中的某一位，判断是否为0，不为零进if语句
         {                        // 判断为HID类请求
@@ -500,6 +551,12 @@ void USB_DevTransProcess(void)  // USB设备传输中断处理
                     errflag = 0xFF;  // 不支持的字符串描述符
                     break;
                 }
+              } break;
+
+              case USB_DESCR_TYP_BOS:  // 0x0F - BOS descriptor for WebUSB
+              {
+                pDescr = USB_BOSDescr;
+                len = USB_BOSDescr[2] | (USB_BOSDescr[3] << 8);  // wTotalLength
               } break;
 
               default:
