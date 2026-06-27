@@ -88,13 +88,15 @@ async function doConnect() {
     rgbCtrl = new RGBController((buf) => kvm.send(buf));
 
     // Query initial state
-    await swCtrl.query();
+    const swState = await swCtrl.query();
+    console.log('[app] Switch state:', JSON.stringify(swState), 'mode:', swCtrl.mode);
     updateSwitchUI();
 
     try {
       const leds = await kvm.queryLEDs();
+      console.log('[app] LED state:', JSON.stringify(leds));
       if (leds) updateLEDsUI(leds);
-    } catch (e) { /* LEDs query may fail initially */ }
+    } catch (e) { console.warn('[app] LED query failed:', e.message); }
 
     // Update UI
     setStatus('connected', 'Connected');

@@ -136,16 +136,9 @@ export class KVMDevice {
    */
   async send(data) {
     if (!this._connected) throw new Error('Device not connected');
-    // Debug: log first few sends to verify protocol
-    if (!this._sendCount) this._sendCount = 0;
-    if (this._sendCount < 5) {
-      const arr = new Uint8Array(data);
-      console.log(`[KVMDevice] send #${this._sendCount} ep=1 bytes=[${Array.from(arr).map(b=>'0x'+b.toString(16).padStart(2,'0')).join(',')}]`);
-      this._sendCount++;
-    }
     const result = await this.device.transferOut(EP_OUT, data);
     if (result.status !== 'ok') {
-      console.warn('[KVMDevice] transferOut status:', result.status, 'bytesWritten:', result.bytesWritten);
+      console.warn('[KVMDevice] transferOut status:', result.status);
     }
     return result;
   }

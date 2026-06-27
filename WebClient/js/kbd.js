@@ -231,7 +231,6 @@ export class KeyboardHandler {
     while (keyCodes.length < 6) keyCodes.push(0x00);
 
     const packet = keyboardPacket(this._modifiers, keyCodes);
-    console.log('[kbd] sending: mod=0x'+this._modifiers.toString(16), 'keys=', keyCodes.slice(0,6).map(k=>'0x'+k.toString(16)).join(','));
     try {
       await this._send(packet);
     } catch (err) {
