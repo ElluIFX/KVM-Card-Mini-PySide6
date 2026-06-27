@@ -393,8 +393,18 @@ $fullscreen.addEventListener('click', () => {
    ========================================================================== */
 $monitor.addEventListener('click', () => { $monitor.focus(); });
 $monitor.addEventListener('blur', () => { if (keyboard) keyboard.reset().catch(()=>{}); });
-$monitor.addEventListener('keydown', (e) => { if (keyboard && kbdEnabled) keyboard.handleKeyDown(e); });
-$monitor.addEventListener('keyup', (e) => { if (keyboard && kbdEnabled) keyboard.handleKeyUp(e); });
+$monitor.addEventListener('keydown', (e) => {
+  if (keyboard && kbdEnabled) {
+    keyboard.handleKeyDown(e);
+    updateModifiersUI(keyboard._modifiers);
+  }
+});
+$monitor.addEventListener('keyup', (e) => {
+  if (keyboard && kbdEnabled) {
+    keyboard.handleKeyUp(e);
+    updateModifiersUI(keyboard._modifiers);
+  }
+});
 
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.shiftKey && e.code === 'KeyF') { e.preventDefault(); $fullscreen.click(); }

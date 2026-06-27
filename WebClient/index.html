@@ -55,6 +55,11 @@
       <!-- 其他 -->
       <button id="$fullscreen" class="btn" title="全屏 (Ctrl+Shift+F)">⛶ 全屏</button>
       <button id="$keyToggle" class="btn btn-sm" title="特殊键面板">特殊键</button>
+
+      <!-- 剪贴板（靠右） -->
+      <span style="flex:1"></span>
+      <textarea id="$clipArea" rows="1" placeholder="粘贴文本..." class="clip-inline"></textarea>
+      <button id="$clipSend" class="btn btn-sm">发送</button>
     </div>
 
     <!-- 特殊键面板 -->
@@ -95,12 +100,6 @@
         <button data-key="PageUp" class="key-btn">PgUp</button>
         <button data-key="PageDown" class="key-btn">PgDn</button>
       </div>
-    </div>
-
-    <!-- 剪贴板面板 -->
-    <div id="$clipPanel">
-      <textarea id="$clipArea" rows="2" placeholder="粘贴文本发送到被控端..."></textarea>
-      <button id="$clipSend" class="btn btn-sm">发送</button>
     </div>
 
     <!-- 状态栏 -->
