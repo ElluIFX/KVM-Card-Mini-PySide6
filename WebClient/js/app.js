@@ -293,25 +293,39 @@ function toggleFullscreen() {
 
 async function initVideo() {
   try {
-    // Enumerate video devices
+    // First, request camera permission (required before enumerateDevices returns labels)
+    let tempStream = null;
+    try {
+      tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    } catch (e) {
+      console.warn('[app] Camera permission not granted yet, trying enumerate without labels');
+    }
+    // Stop the temp stream immediately
+    if (tempStream) {
+      tempStream.getTracks().forEach(t => t.stop());
+    }
+
+    // Now enumerate with labels available
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter(d => d.kind === 'videoinput');
-    console.log('[app] Video devices:', videoDevices.map(d => d.label || '(no label)'));
+    console.log('[app] Video devices:', videoDevices.map(d => `"${d.label || '(no label)'}" (${d.deviceId.slice(0,16)}...)`));
 
-    // Look for MS2131 or any external USB camera
+    // Look for MS2131 / Oray Q0.5 or any external USB camera
     let deviceId = null;
-    const ms2131 = videoDevices.find(d =>
-      d.label && (d.label.toLowerCase().includes('ms2131') ||
-                   d.label.toLowerCase().includes('usb video') ||
-                   d.label.toLowerCase().includes('uvc'))
+    const keywords = ['ms2131', 'oray', 'q0.5', 'usb video', 'uvc', 'hdmi'];
+    const match = videoDevices.find(d =>
+      d.label && keywords.some(kw => d.label.toLowerCase().includes(kw))
     );
-    if (ms2131) {
-      deviceId = ms2131.deviceId;
-      console.log('[app] Found MS2131/UVC device:', ms2131.label);
+    if (match) {
+      deviceId = match.deviceId;
+      console.log('[app] Found MS2131/Oray device:', match.label);
     } else if (videoDevices.length > 0) {
-      // Pick the last one (external cameras usually listed after built-in)
-      deviceId = videoDevices[videoDevices.length - 1].deviceId;
-      console.log('[app] Using video device:', videoDevices[videoDevices.length - 1].label || '(unnamed)');
+      // Use the last device (external cameras typically come after built-in)
+      const last = videoDevices[videoDevices.length - 1];
+      if (last.label) {
+        deviceId = last.deviceId;
+        console.log('[app] Using last video device:', last.label);
+      }
     }
 
     if (deviceId) {
@@ -323,21 +337,19 @@ async function initVideo() {
         },
         audio: false,
       };
-
-      // Need a user gesture for getUserMedia on some browsers
       mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       $monitor.srcObject = mediaStream;
       await $monitor.play();
       console.log('[app] Video stream started');
       $monitor.classList.add('has-video');
+      $overlay.classList.add('hidden');
     } else {
       console.warn('[app] No video capture devices found. Keyboard/mouse will still work.');
-      $monitor.style.background = '#1a1a2e url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="%23444" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>\') center no-repeat';
+      $monitor.style.background = '#1a1a2e';
     }
   } catch (err) {
     console.warn('[app] Video capture not available:', err.message);
     $monitor.style.background = '#1a1a2e';
-    // Keyboard/mouse passthrough still works
   }
 }
 
