@@ -1456,17 +1456,17 @@ int main() {
  * @brief   Update WS2812B LED based on MCU/connection status
  */
 void UpdateStatusLED(void) {
-    unsigned char rgb_buf[3];
+    unsigned char grb_buf[3];  // WS2812B uses GRB order, not RGB
     if (!g_mcu_ready || !DevConfig) {
-        rgb_buf[0]=64; rgb_buf[1]=0; rgb_buf[2]=0;  // Red
+        grb_buf[0]=0; grb_buf[1]=64; grb_buf[2]=0;   // Red (G=0,R=64,B=0)
     } else if (!U2DevConfig) {
-        rgb_buf[0]=64; rgb_buf[1]=32; rgb_buf[2]=0;  // Yellow
+        grb_buf[0]=32; grb_buf[1]=64; grb_buf[2]=0;   // Yellow (G=32,R=64,B=0)
     } else if (g_usb2_kbd_active || g_usb2_mouse_active) {
-        rgb_buf[0]=0; rgb_buf[1]=0; rgb_buf[2]=64;   // Blue
+        grb_buf[0]=0; grb_buf[1]=0; grb_buf[2]=64;    // Blue (G=0,R=0,B=64)
     } else {
-        rgb_buf[0]=0; rgb_buf[1]=32; rgb_buf[2]=0;   // Green
+        grb_buf[0]=32; grb_buf[1]=0; grb_buf[2]=0;    // Green (G=32,R=0,B=0)
     }
-    if (g_led_auto_mode) SendOnePix(rgb_buf);
+    if (g_led_auto_mode) SendOnePix(grb_buf);
 }
 
 
