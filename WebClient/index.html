@@ -118,24 +118,25 @@
           <span id="$mouseStat" class="stat-val stat-on">鼠标</span>
         </span>
         <span class="sep">|</span>
-        <!-- 键盘LED -->
-        <span id="$ledNum" class="led" title="Num Lock">N</span>
-        <span id="$ledCaps" class="led" title="Caps Lock">C</span>
-        <span id="$ledScroll" class="led" title="Scroll Lock">S</span>
-        <span class="sep">|</span>
-        <!-- 修饰键 -->
-        <span id="$modCtrl" class="mod">Ctrl</span>
-        <span id="$modShift" class="mod">Shift</span>
-        <span id="$modAlt" class="mod">Alt</span>
-        <span id="$modMeta" class="mod">Win</span>
-        <span class="sep">|</span>
-        <!-- USB开关状态 -->
-        <span id="$switchLabel" class="stat-val"></span>
-        <!-- RGB -->
-        <span class="extras-group">
-          <input type="color" id="$rgbColor" value="#00ff00" title="RGB LED">
-          <button id="$rgbSend" class="btn btn-sm">设</button>
+        <!-- 键盘LED指示灯 -->
+        <span class="stat-group">
+          <span class="stat-label">锁定:</span>
+          <span id="$ledNum" class="led" title="Num Lock">N</span>
+          <span id="$ledCaps" class="led" title="Caps Lock">C</span>
+          <span id="$ledScroll" class="led" title="Scroll Lock">S</span>
         </span>
+        <span class="sep">|</span>
+        <!-- 修饰键指示灯 -->
+        <span class="stat-group">
+          <span class="stat-label">修饰:</span>
+          <span id="$modCtrl" class="mod">Ctrl</span>
+          <span id="$modShift" class="mod">Shift</span>
+          <span id="$modAlt" class="mod">Alt</span>
+          <span id="$modMeta" class="mod">Win</span>
+        </span>
+        <span class="sep">|</span>
+        <!-- MCU状态详情 -->
+        <span id="$switchLabel" class="stat-val"></span>
         <!-- 调试面板触发 -->
         <button id="$debugToggle" class="btn btn-sm" title="显示/隐藏调试信息" style="margin-left:auto">调试</button>
       </div>

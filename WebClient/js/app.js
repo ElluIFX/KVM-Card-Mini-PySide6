@@ -45,8 +45,6 @@ const $modShift  = $('$modShift');
 const $modAlt    = $('$modAlt');
 const $modMeta   = $('$modMeta');
 const $switchLabel = $('$switchLabel');
-const $rgbColor  = $('$rgbColor');
-const $rgbSend   = $('$rgbSend');
 const $debugPanel= $('$debugPanel');
 const $debugLog  = $('$debugLog');
 const $debugToggle = $('$debugToggle');
@@ -318,22 +316,6 @@ async function doPaste() {
 }
 
 $clipSend.addEventListener('click', doPaste);
-
-/* ==========================================================================
-   RGB LED
-   ========================================================================== */
-async function doSetRGB() {
-  if (!kvm.connected) return;
-  const hex = $rgbColor.value;
-  const r = parseInt(hex.slice(1,3), 16);
-  const g = parseInt(hex.slice(3,5), 16);
-  const b = parseInt(hex.slice(5,7), 16);
-  if (isNaN(r)) return;
-  const buf = buildCommand(CMD.SET_RGB, 0x00, r, g, b);
-  await kvm.send(buf);
-}
-
-$rgbSend.addEventListener('click', doSetRGB);
 
 /* ==========================================================================
    Video
