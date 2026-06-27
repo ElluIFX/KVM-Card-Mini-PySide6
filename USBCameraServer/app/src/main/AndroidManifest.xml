@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.webusbkvm.camera">
 
     <!-- USB host mode for UVC camera -->
     <uses-feature android:name="android.hardware.usb.host" android:required="true" />
@@ -10,7 +11,7 @@
     <application
         android:allowBackup="true"
         android:label="USB Camera Server"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
+        android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
             android:name=".MainActivity"

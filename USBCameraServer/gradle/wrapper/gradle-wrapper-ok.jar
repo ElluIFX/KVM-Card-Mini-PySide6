@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>About us</title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header">
+        <h3>Ali-OSM</h3>
+        <a href="/" title="Alibaba open source mirror site"> Alibaba Open Source Mirror Site</a>
+    </div>
+
+<div id="navbar">
+    <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="http://job.alibaba.com/zhaopin/index">Join Us</a></li>
+    </ul>
+</div>
+<div id="main">
+    <div id="content">
+   <h1 class="about-us">About Us</h1>
+    <p class="about-us-p">
+        阿里云镜像由阿里巴巴技术保障部基础系统组提供支持。
+    </p>
+    <p class="about-us-p">
+        覆盖了Debian、Ubuntu、 Fedora、Arch Linux、 CentOS、openSUSE、Scientific Linux、Gentoo 等多个发行版的软件源镜像。
+    </p>
+    <p class="about-us-p">
+        搭建此开源镜像的目的在于宣传自由软件的价值，提高自由软件社区文化氛围, 推广自由软件在国内应用。
+    </p>
+    </div>
+    <div id="siderbar">
+    <h1 class="mirror-help">镜像设置</h1>
+    <p>
+        如果您不了解如何配置 Linux 发行版 / 软件的安装源，   您可以通过<a href="/">首页</a>的文件列表中相应源的 Help 链接寻求帮助
+    </p>
+
+    <h1 class="mirror-help-tips">友情提示</h1>
+    <p>
+        同步频率为每天一次，每天凌晨2：00-4：00为镜像的同步时间
+    </p>
+    <p>
+        若使用阿里云服务器，将源的域名从mirrors.aliyun.com改为mirrors.cloud.aliyuncs.com,不占用公网流量。
+    </p>
+   <p>
+	如果需要下载ISO镜像，请直接使用Chrome、Firefox浏览器下载，勿使用P2P下载工具。
+   </p>
+    <h1 class="mirror-link">常用链接</h1>
+    <ul>
+        <li><a href="/about">About us</a></li>
+ 	<li><a href=http://buy.aliyun.com>购买云服务器</a></li>
+    </ul>
+	<p style="margin-left:15px;">
+	</p>
+</br>
+</br>
+    <div class="laiwang">
+        <h1 class="mirror-link" style="margin-top:30px;">联系我们</h1>
+		<p>ali-yum@alibaba-inc.com</p>
+    </div>
+</div>
+
+</div>
+<div class="clear"></div>
+<div id="footer">
+    <div class="about">
+    </div>
+</div>
+
