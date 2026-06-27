@@ -85,10 +85,13 @@ export class KVMDevice {
       throw new Error(`Failed to open device: ${err.message}`);
     }
 
+    console.log('[KVMDevice] Device opened');
+
     // Select configuration #1
     if (device.configuration === null) {
       await device.selectConfiguration(1);
     }
+    console.log('[KVMDevice] Configuration selected, config:', device.configuration?.configurationValue);
 
     // Claim interface #0
     try {
@@ -98,13 +101,23 @@ export class KVMDevice {
       this.device = null;
       throw new Error(`Failed to claim interface: ${err.message}. The device may be in use by another application.`);
     }
+    console.log('[KVMDevice] Interface claimed');
 
-    // Verify endpoints exist
+    // Verify endpoints exist (debug dump)
     const iface = device.configuration.interfaces[0];
     const alt = iface.alternate;
     const eps = alt.endpoints;
+    console.log('[KVMDevice] Found', eps.length, 'endpoints:',
+      eps.map(e => `0x${e.endpointNumber.toString(16)}/${e.direction}/${e.type}`).join(', '));
+
     this.epOut = eps.find(e => e.endpointNumber === 1 && e.direction === 'out');
     this.epIn  = eps.find(e => e.endpointNumber === 1 && e.direction === 'in');
+
+    if (!this.epOut || !this.epIn) {
+      // Try without direction filter in case vendor-specific reports differently
+      this.epOut = eps.find(e => (e.endpointNumber & 0x7F) === 1 && e.direction === 'out');
+      this.epIn  = eps.find(e => (e.endpointNumber & 0x7F) === 1 && e.direction === 'in');
+    }
 
     if (!this.epOut || !this.epIn) {
       await device.releaseInterface(0);
@@ -114,7 +127,7 @@ export class KVMDevice {
     }
 
     this._connected = true;
-    console.log('[KVMDevice] Connected successfully');
+    console.log('[KVMDevice] Connected successfully. EP OUT:', this.epOut, 'EP IN:', this.epIn);
   }
 
   /**
@@ -123,11 +136,22 @@ export class KVMDevice {
    */
   async send(data) {
     if (!this._connected) throw new Error('Device not connected');
-    const result = await this.device.transferOut(EP_OUT, data);
-    if (result.status !== 'ok') {
-      console.warn('[KVMDevice] transferOut status:', result.status);
+    // Try both endpoint formats
+    const tryEps = [EP_OUT, 0x80 | EP_OUT]; // [1, 0x81]
+    let lastErr = null;
+    for (const epNum of tryEps) {
+      try {
+        const result = await this.device.transferOut(epNum, data);
+        if (result.status !== 'ok') {
+          console.warn('[KVMDevice] transferOut status:', result.status);
+        }
+        return result;
+      } catch (err) {
+        console.warn('[KVMDevice] transferOut failed on ep 0x' + epNum.toString(16) + ':', err.message);
+        lastErr = err;
+      }
     }
-    return result;
+    throw lastErr || new Error('transferOut failed on all endpoint formats');
   }
 
   /**
@@ -136,11 +160,23 @@ export class KVMDevice {
    */
   async recv() {
     if (!this._connected) throw new Error('Device not connected');
-    const result = await this.device.transferIn(EP_IN, 64);
-    if (result.status !== 'ok') {
-      console.warn('[KVMDevice] transferIn status:', result.status);
+    // Try full address (0x81) first, fall back to just endpoint number (1)
+    const tryEps = [EP_IN, EP_IN & 0x7F]; // [0x81, 1]
+    let lastErr = null;
+    for (const epNum of tryEps) {
+      try {
+        const result = await this.device.transferIn(epNum, 64);
+        if (result.status !== 'ok') {
+          console.warn('[KVMDevice] transferIn status:', result.status, 'ep:', '0x' + epNum.toString(16));
+        }
+        console.log('[KVMDevice] transferIn OK on ep 0x' + epNum.toString(16));
+        return result.data;
+      } catch (err) {
+        console.warn('[KVMDevice] transferIn failed on ep 0x' + epNum.toString(16) + ':', err.message);
+        lastErr = err;
+      }
     }
-    return result.data;
+    throw lastErr || new Error('transferIn failed on all endpoint formats');
   }
 
   /**
