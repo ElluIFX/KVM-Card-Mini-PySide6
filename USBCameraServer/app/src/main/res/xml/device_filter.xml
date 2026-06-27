@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MS2131 HDMI Capture (Oray Q0.5) -->
+    <usb-device vendor-id="13645" product-id="8497" />
+    <!-- 13645 = 0x534D (MacroSilicon) -->
+    <!-- 8497  = 0x2131 (MS2131)      -->
+</resources>

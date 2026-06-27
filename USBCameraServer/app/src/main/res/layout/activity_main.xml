@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#121218"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="● 运行中"
+        android:textColor="#4caf50"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/urlText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="http://localhost:8080/stream"
+        android:textColor="#e0e0e0"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:fontFamily="monospace" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="在浏览器中打开以上地址"
+        android:textColor="#888"
+        android:textSize="14sp" />
+
+</LinearLayout>
