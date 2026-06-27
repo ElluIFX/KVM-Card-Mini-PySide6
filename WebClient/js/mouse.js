@@ -162,6 +162,11 @@ export class MouseHandler {
   /** Send absolute mouse report */
   async _sendAbs() {
     const packet = absMousePacket(this._buttons, this._absX, this._absY, this._wheel);
+    if (!this._absLogCount) this._absLogCount = 0;
+    if (this._absLogCount < 3) {
+      console.log(`[mouse] abs: btns=0x${this._buttons.toString(16)} x=${this._absX} y=${this._absY} wheel=${this._wheel}`);
+      this._absLogCount++;
+    }
     try {
       await this._send(packet);
       // Clear wheel after one report
