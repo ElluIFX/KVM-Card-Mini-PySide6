@@ -121,6 +121,22 @@ html, body {
   white-space: nowrap;
 }
 
+/* Camera selector */
+.cam-select {
+  padding: 3px 6px;
+  border: 1px solid var(--bg3);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.7rem;
+  max-width: 140px;
+  cursor: pointer;
+}
+.cam-select option {
+  background: var(--bg2);
+  color: var(--fg);
+}
+
 /* ==========================================================================
    Buttons
    ========================================================================== */

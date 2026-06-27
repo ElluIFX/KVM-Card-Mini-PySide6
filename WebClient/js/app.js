@@ -291,67 +291,120 @@ function toggleFullscreen() {
    Video Capture (MS2131 UVC via getUserMedia)
    ========================================================================== */
 
-async function initVideo() {
+const $cameraSelect  = $('$cameraSelect');
+const $cameraRefresh = $('$cameraRefresh');
+
+let videoDevices = [];  // cached device list
+let currentStream = null;
+
+/**
+ * Enumerate video devices and populate the camera selector.
+ * Call after obtaining camera permission.
+ */
+async function refreshCameraList() {
   try {
-    // First, request camera permission (required before enumerateDevices returns labels)
-    let tempStream = null;
-    try {
-      tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    } catch (e) {
-      console.warn('[app] Camera permission not granted yet, trying enumerate without labels');
-    }
-    // Stop the temp stream immediately
-    if (tempStream) {
-      tempStream.getTracks().forEach(t => t.stop());
-    }
-
-    // Now enumerate with labels available
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(d => d.kind === 'videoinput');
-    console.log('[app] Video devices:', videoDevices.map(d => `"${d.label || '(no label)'}" (${d.deviceId.slice(0,16)}...)`));
+    videoDevices = devices.filter(d => d.kind === 'videoinput');
+    console.log('[app] Video devices:', videoDevices.map(d => `"${d.label || '(unnamed)'}"`));
 
-    // Look for MS2131 / Oray Q0.5 or any external USB camera
-    let deviceId = null;
-    const keywords = ['ms2131', 'oray', 'q0.5', 'usb video', 'uvc', 'hdmi'];
-    const match = videoDevices.find(d =>
-      d.label && keywords.some(kw => d.label.toLowerCase().includes(kw))
+    // Populate selector
+    $cameraSelect.innerHTML = '<option value="">No Camera</option>';
+    videoDevices.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      const label = d.label || `Camera ${i + 1}`;
+      // Mark probable MS2131/UVC devices
+      const isUVC = /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect/i.test(label);
+      opt.textContent = isUVC ? `★ ${label}` : label;
+      $cameraSelect.appendChild(opt);
+    });
+
+    // Auto-select the first UVC device, or the last device (external cameras after built-in)
+    const uvcIdx = videoDevices.findIndex(d =>
+      /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect/i.test(d.label || '')
     );
-    if (match) {
-      deviceId = match.deviceId;
-      console.log('[app] Found MS2131/Oray device:', match.label);
+    if (uvcIdx >= 0) {
+      $cameraSelect.value = videoDevices[uvcIdx].deviceId;
+      console.log('[app] Auto-selected UVC device:', videoDevices[uvcIdx].label);
     } else if (videoDevices.length > 0) {
-      // Use the last device (external cameras typically come after built-in)
-      const last = videoDevices[videoDevices.length - 1];
-      if (last.label) {
-        deviceId = last.deviceId;
-        console.log('[app] Using last video device:', last.label);
-      }
-    }
-
-    if (deviceId) {
-      const constraints = {
-        video: {
-          deviceId: { exact: deviceId },
-          width:  { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      };
-      mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      $monitor.srcObject = mediaStream;
-      await $monitor.play();
-      console.log('[app] Video stream started');
-      $monitor.classList.add('has-video');
-      $overlay.classList.add('hidden');
-    } else {
-      console.warn('[app] No video capture devices found. Keyboard/mouse will still work.');
-      $monitor.style.background = '#1a1a2e';
+      // Pick the last one (external usually after built-in)
+      $cameraSelect.value = videoDevices[videoDevices.length - 1].deviceId;
     }
   } catch (err) {
-    console.warn('[app] Video capture not available:', err.message);
-    $monitor.style.background = '#1a1a2e';
+    console.warn('[app] Camera enumeration failed:', err.message);
   }
 }
+
+/**
+ * Start video stream from the selected camera.
+ */
+async function startCamera(deviceId) {
+  // Stop previous stream
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
+  }
+
+  if (!deviceId) {
+    $monitor.srcObject = null;
+    $monitor.classList.remove('has-video');
+    $overlay.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId: { exact: deviceId },
+        width:  { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    });
+    $monitor.srcObject = currentStream;
+    await $monitor.play();
+    console.log('[app] Video stream started on:', deviceId.slice(0, 16) + '...');
+    $monitor.classList.add('has-video');
+    $overlay.classList.add('hidden');
+  } catch (err) {
+    console.warn('[app] Failed to start camera:', err.message);
+    $monitor.srcObject = null;
+    $monitor.classList.remove('has-video');
+    $overlay.classList.remove('hidden');
+  }
+}
+
+/**
+ * Initialize camera list and setup selector events.
+ */
+async function initVideo() {
+  // Request camera permission first (required for labels on some browsers)
+  try {
+    const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    tmp.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    console.warn('[app] Camera permission not granted:', e.message);
+  }
+
+  await refreshCameraList();
+
+  // Auto-start if a device was selected
+  const selectedId = $cameraSelect.value;
+  if (selectedId) {
+    await startCamera(selectedId);
+  }
+}
+
+// Camera selector change event
+$cameraSelect.addEventListener('change', () => {
+  startCamera($cameraSelect.value);
+});
+
+// Refresh button
+$cameraRefresh.addEventListener('click', async () => {
+  await refreshCameraList();
+  startCamera($cameraSelect.value);
+});
 
 /* ==========================================================================
    Status Bar
