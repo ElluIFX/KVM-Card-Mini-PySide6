@@ -1,100 +1,94 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>KVM Card Mini — Web Client</title>
+  <title>KVM Card Mini — Web 控制端</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- ==================================================================
-       Main Container
-       ================================================================== -->
   <main id="$main">
 
-    <!-- Video Display Area -->
+    <!-- Video -->
     <div id="$videoContainer">
       <video id="$monitor" tabindex="0" autoplay playsinline muted></video>
-      <div id="$overlay">Click "Connect" to start KVM session</div>
+      <div id="$overlay">点击"连接MCU"开始</div>
     </div>
 
-    <!-- ==================================================================
-         Toolbar
-         ================================================================== -->
+    <!-- Toolbar -->
     <div id="$toolbar">
 
-      <!-- Connection -->
+      <!-- MCU 控制 -->
       <div class="toolbar-group">
-        <button id="$connect" class="btn btn-primary">Connect</button>
-        <button id="$disconnect" class="btn btn-danger hidden">Disconnect</button>
-        <button id="$resetMc" class="btn">Reset MCU</button>
+        <button id="$connect" class="btn btn-primary">连接MCU</button>
+        <button id="$disconnect" class="btn btn-danger hidden">断开MCU</button>
+        <button id="$resetMc" class="btn" title="重置MCU">重置</button>
       </div>
 
-      <!-- USB Switch -->
-      <div class="toolbar-group switch-group">
-        <span class="label">Switch:</span>
-        <button id="$switchFloat"  class="btn btn-sm">Float</button>
-        <button id="$switchMaster" class="btn btn-sm active">Master</button>
-        <button id="$switchTarget" class="btn btn-sm">Target</button>
-        <span id="$switchLabel" class="mode-label">Master (Host)</span>
-      </div>
+      <span class="sep">|</span>
 
-      <!-- Mouse Mode -->
+      <!-- 键盘控制 -->
       <div class="toolbar-group">
-        <button id="$mouseAbs" class="btn btn-sm active" title="Absolute mouse (default)">Abs</button>
-        <button id="$mouseRel" class="btn btn-sm" title="Relative mouse (pointer lock)">Rel</button>
+        <button id="$kbdToggle" class="btn toggle-on" title="键盘启用/禁用">⌨ 键盘</button>
       </div>
 
-      <!-- Fullscreen -->
-      <button id="$fullscreen" class="btn" title="Toggle Fullscreen (Ctrl+Shift+F)">⛶</button>
+      <!-- 鼠标控制 -->
+      <div class="toolbar-group">
+        <button id="$mouseToggle" class="btn toggle-on" title="鼠标启用/禁用">🖱 鼠标</button>
+        <button id="$mouseAbs" class="btn btn-sm active" title="绝对模式">绝对</button>
+        <button id="$mouseRel" class="btn btn-sm" title="相对模式（指针锁定）">相对</button>
+      </div>
 
-      <!-- Camera Selector -->
+      <span class="sep">|</span>
+
+      <!-- 视频源 -->
       <div class="toolbar-group">
         <select id="$cameraSelect" class="cam-select">
-          <option value="">No Camera</option>
+          <option value="">无摄像头</option>
         </select>
-        <button id="$cameraRefresh" class="btn btn-sm" title="Refresh camera list">↻</button>
+        <button id="$cameraRefresh" class="btn btn-sm" title="刷新摄像头列表">↻</button>
       </div>
 
-      <!-- Special Keys Toggle (for Android) -->
-      <button id="$keyToggle" class="btn btn-sm" title="Show special keys panel">Keys</button>
+      <!-- 其他 -->
+      <button id="$fullscreen" class="btn" title="全屏 (Ctrl+Shift+F)">⛶ 全屏</button>
+      <button id="$keyToggle" class="btn btn-sm" title="特殊键面板">特殊键</button>
     </div>
 
-    <!-- ==================================================================
-         Special Keys Panel (for Android tablets)
-         ================================================================== -->
+    <!-- 特殊键面板 -->
     <div id="$keyPanel">
       <div class="key-row">
         <button data-key="Escape" class="key-btn">Esc</button>
         <button data-key="Tab" class="key-btn">Tab</button>
-        <button data-key="F1" class="key-btn">F1</button>
-        <button data-key="F2" class="key-btn">F2</button>
-        <button data-key="F3" class="key-btn">F3</button>
-        <button data-key="F4" class="key-btn">F4</button>
-      </div>
-      <div class="key-row">
-        <button data-key="F5" class="key-btn">F5</button>
-        <button data-key="F6" class="key-btn">F6</button>
-        <button data-key="F7" class="key-btn">F7</button>
-        <button data-key="F8" class="key-btn">F8</button>
-        <button data-key="F9" class="key-btn">F9</button>
-        <button data-key="F10" class="key-btn">F10</button>
-      </div>
-      <div class="key-row">
-        <button data-key="F11" class="key-btn">F11</button>
-        <button data-key="F12" class="key-btn">F12</button>
         <button data-key="ControlLeft" class="key-btn mod-btn">Ctrl</button>
         <button data-key="AltLeft" class="key-btn mod-btn">Alt</button>
         <button data-key="MetaLeft" class="key-btn mod-btn">Win</button>
         <button data-key="Delete" class="key-btn">Del</button>
+        <button data-key="Backspace" class="key-btn">⌫</button>
+        <button data-key="Enter" class="key-btn">↵</button>
+      </div>
+      <div class="key-row">
+        <button data-key="F1" class="key-btn">F1</button>
+        <button data-key="F2" class="key-btn">F2</button>
+        <button data-key="F3" class="key-btn">F3</button>
+        <button data-key="F4" class="key-btn">F4</button>
+        <button data-key="F5" class="key-btn">F5</button>
+        <button data-key="F6" class="key-btn">F6</button>
+      </div>
+      <div class="key-row">
+        <button data-key="F7" class="key-btn">F7</button>
+        <button data-key="F8" class="key-btn">F8</button>
+        <button data-key="F9" class="key-btn">F9</button>
+        <button data-key="F10" class="key-btn">F10</button>
+        <button data-key="F11" class="key-btn">F11</button>
+        <button data-key="F12" class="key-btn">F12</button>
       </div>
       <div class="key-row">
         <button data-key="ArrowUp" class="key-btn">↑</button>
-        <button data-key="ArrowLeft" class="key-btn">←</button>
         <button data-key="ArrowDown" class="key-btn">↓</button>
+        <button data-key="ArrowLeft" class="key-btn">←</button>
         <button data-key="ArrowRight" class="key-btn">→</button>
         <button data-key="Home" class="key-btn">Home</button>
         <button data-key="End" class="key-btn">End</button>
@@ -103,52 +97,53 @@
       </div>
     </div>
 
-    <!-- ==================================================================
-         Debug Panel (tap status bar to toggle)
-         ================================================================== -->
-    <div id="$debugPanel" class="debug-panel">
-      <div id="$debugLog"></div>
+    <!-- 剪贴板面板 -->
+    <div id="$clipPanel">
+      <textarea id="$clipArea" rows="2" placeholder="粘贴文本发送到被控端..."></textarea>
+      <button id="$clipSend" class="btn btn-sm">发送</button>
     </div>
 
-    <!-- ==================================================================
-         Bottom Bar: Status + Extras
-         ================================================================== -->
+    <!-- 状态栏 -->
     <div id="$bottombar">
-
       <div id="$statusRow">
-        <span id="$status" class="status-disconnected">Disconnected</span>
-
-        <!-- Keyboard LEDs -->
-        <span class="leds">
-          <span id="$ledNum" class="led" title="Num Lock">Num</span>
-          <span id="$ledCaps" class="led" title="Caps Lock">Caps</span>
-          <span id="$ledScroll" class="led" title="Scroll Lock">Scr</span>
+        <!-- MCU状态 -->
+        <span class="stat-group">
+          <span class="stat-label">MCU:</span>
+          <span id="$status" class="stat-val status-disconnected">未连接</span>
         </span>
-
-        <!-- Modifier Indicators -->
-        <span class="mods">
-          <span id="$modCtrl" class="mod" title="Ctrl">Ctrl</span>
-          <span id="$modShift" class="mod" title="Shift">Shift</span>
-          <span id="$modAlt" class="mod" title="Alt">Alt</span>
-          <span id="$modMeta" class="mod" title="Meta/Win">Win</span>
+        <span class="sep">|</span>
+        <!-- 键鼠状态 -->
+        <span class="stat-group">
+          <span id="$kbdStat" class="stat-val stat-on">键盘</span>
+          <span id="$mouseStat" class="stat-val stat-on">鼠标</span>
         </span>
-      </div>
-
-      <div id="$extrasRow">
-        <!-- RGB LED -->
+        <span class="sep">|</span>
+        <!-- 键盘LED -->
+        <span id="$ledNum" class="led" title="Num Lock">N</span>
+        <span id="$ledCaps" class="led" title="Caps Lock">C</span>
+        <span id="$ledScroll" class="led" title="Scroll Lock">S</span>
+        <span class="sep">|</span>
+        <!-- 修饰键 -->
+        <span id="$modCtrl" class="mod">Ctrl</span>
+        <span id="$modShift" class="mod">Shift</span>
+        <span id="$modAlt" class="mod">Alt</span>
+        <span id="$modMeta" class="mod">Win</span>
+        <span class="sep">|</span>
+        <!-- USB开关状态 -->
+        <span id="$switchLabel" class="stat-val"></span>
+        <!-- RGB -->
         <span class="extras-group">
-          <label for="$rgbColor">RGB:</label>
-          <input type="color" id="$rgbColor" value="#00ff00">
-          <button id="$rgbSend" class="btn btn-sm">Set</button>
+          <input type="color" id="$rgbColor" value="#00ff00" title="RGB LED">
+          <button id="$rgbSend" class="btn btn-sm">设</button>
         </span>
-
-        <!-- Paste -->
-        <span class="extras-group paste-group">
-          <textarea id="$pasteArea" rows="1" placeholder="Paste text to send to target..."></textarea>
-          <button id="$pasteSend" class="btn btn-sm">Send</button>
-        </span>
+        <!-- 调试面板触发 -->
+        <button id="$debugToggle" class="btn btn-sm" title="显示/隐藏调试信息" style="margin-left:auto">调试</button>
       </div>
+    </div>
 
+    <!-- 调试面板 -->
+    <div id="$debugPanel" class="debug-panel">
+      <div id="$debugLog"></div>
     </div>
 
   </main>

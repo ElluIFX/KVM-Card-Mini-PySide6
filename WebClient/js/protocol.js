@@ -198,9 +198,14 @@ export function parseSwitchResponse(data) {
 }
 
 /**
- * Parse keyboard LED response.
+ * Parse keyboard LED response (extended).
+ * Command 0x03 response:
+ *   byte 0: 0x03 (command echo)
+ *   byte 2: keyboard LED bits (bit0=Num, bit1=Caps, bit2=Scroll)
+ *   byte 3: MCU status flags (bit0=ready, bit1=USB1, bit2=USB2, bit3=KBD, bit4=MS)
+ *   byte 4: LED auto mode (1=auto, 0=manual)
  * @param {DataView} data - 10-byte response packet
- * @returns {{numLock: boolean, capsLock: boolean, scrollLock: boolean}|null}
+ * @returns {{numLock: boolean, capsLock: boolean, scrollLock: boolean, flags: number, ledMode: number}|null}
  */
 export function parseLEDResponse(data) {
   if (data.getUint8(0) !== 0x03) return null;
@@ -209,5 +214,16 @@ export function parseLEDResponse(data) {
     numLock:    !!(bits & 0x01),
     capsLock:   !!(bits & 0x02),
     scrollLock: !!(bits & 0x04),
+    flags:      data.getUint8(3),   // MCU status flags
+    ledMode:    data.getUint8(4),   // 1=auto, 0=manual
   };
 }
+
+/** MCU status flag bit definitions (byte 3 of command 0x03 response) */
+export const MCU_FLAGS = {
+  READY:    0x01,  // MCU init complete
+  USB1_OK:  0x02,  // USB1 configured by host
+  USB2_OK:  0x04,  // USB2 configured by target
+  KBD_ACT:  0x08,  // USB2 keyboard active (target reading data)
+  MS_ACT:   0x10,  // USB2 mouse active (target reading data)
+};

@@ -1,155 +1,187 @@
 /**
- * app.js — KVM-Card-Mini WebUSB Client — Application Bootstrap
+ * app.js — KVM Web Client — Main Application
  *
- * Orchestrates: WebUSB connection, video capture, keyboard, mouse,
- *               USB switch, RGB LED, and UI state.
+ * Chinese UI, independent subsystem toggles,
+ * extended MCU status polling, debug panel.
  */
 
 import { KVMDevice } from './webusb.js';
-import { CMD, buildCommand, resetPacket } from './protocol.js';
+import { CMD, buildCommand, resetPacket, parseLEDResponse } from './protocol.js';
 import { KeyboardHandler } from './kbd.js';
 import { MouseHandler } from './mouse.js';
-import { SwitchController } from './switch.js';
-import { RGBController } from './rgb.js';
 
 /* ==========================================================================
-   DOM References (all IDs use $ prefix convention)
+   DOM Refs
    ========================================================================== */
-
 const $ = (id) => document.getElementById(id);
 
-const $monitor    = $('$monitor');
-const $overlay    = $('$overlay');
-const $status     = $('$status');
-const $connect    = $('$connect');
-const $disconnect = $('$disconnect');
-const $resetMc    = $('$resetMc');
+const $monitor   = $('$monitor');
+const $overlay   = $('$overlay');
+const $status    = $('$status');
+const $connect   = $('$connect');
+const $disconnect= $('$disconnect');
+const $resetMc   = $('$resetMc');
 
-const $switchFloat  = $('$switchFloat');
-const $switchMaster = $('$switchMaster');
-const $switchTarget = $('$switchTarget');
-const $switchLabel  = $('$switchLabel');
-
-const $mouseMode = $('$mouseMode');
+const $kbdToggle = $('$kbdToggle');
+const $mouseToggle = $('$mouseToggle');
 const $mouseAbs  = $('$mouseAbs');
 const $mouseRel  = $('$mouseRel');
+const $kbdStat   = $('$kbdStat');
+const $mouseStat = $('$mouseStat');
 
+const $cameraSelect = $('$cameraSelect');
+const $cameraRefresh = $('$cameraRefresh');
 const $fullscreen = $('$fullscreen');
-const $pasteArea  = $('$pasteArea');
-const $pasteSend  = $('$pasteSend');
-const $rgbColor   = $('$rgbColor');
-const $rgbSend    = $('$rgbSend');
-
-const $keyPanel   = $('$keyPanel');
 const $keyToggle  = $('$keyToggle');
-const $debugPanel = $('$debugPanel');
-const $debugLog   = $('$debugLog');
-
-/* ==========================================================================
-   On-page debug logger (for Android where DevTools is not available)
-   ========================================================================== */
-function debugLog(msg, level = 'info') {
-  const cls = level === 'warn' ? 'warn' : (level === 'err' ? 'err' : '');
-  const el = document.createElement('div');
-  el.className = 'debug-line' + (cls ? ' ' + cls : '');
-  el.textContent = new Date().toLocaleTimeString() + ' ' + msg;
-  $debugLog.appendChild(el);
-  // Scroll to bottom
-  $debugPanel.scrollTop = $debugPanel.scrollHeight;
-  // Also log to console
-  if (level === 'warn') console.warn(msg);
-  else if (level === 'err') console.error(msg);
-  else console.log(msg);
-}
-
-// Toggle debug panel by tapping status bar
-$status.addEventListener('click', () => {
-  $debugPanel.classList.toggle('visible');
-});
+const $keyPanel   = $('$keyPanel');
+const $clipArea   = $('$clipArea');
+const $clipSend   = $('$clipSend');
 
 const $ledNum    = $('$ledNum');
 const $ledCaps   = $('$ledCaps');
 const $ledScroll = $('$ledScroll');
-
-const $modCtrl  = $('$modCtrl');
-const $modShift = $('$modShift');
-const $modAlt   = $('$modAlt');
-const $modMeta  = $('$modMeta');
+const $modCtrl   = $('$modCtrl');
+const $modShift  = $('$modShift');
+const $modAlt    = $('$modAlt');
+const $modMeta   = $('$modMeta');
+const $switchLabel = $('$switchLabel');
+const $rgbColor  = $('$rgbColor');
+const $rgbSend   = $('$rgbSend');
+const $debugPanel= $('$debugPanel');
+const $debugLog  = $('$debugLog');
+const $debugToggle = $('$debugToggle');
 
 /* ==========================================================================
-   Core Objects
+   State
    ========================================================================== */
-
-const kvm    = new KVMDevice();
+const kvm = new KVMDevice();
 let keyboard = null;
-let mouse    = null;
-let swCtrl   = null;
-let rgbCtrl  = null;
-let mediaStream = null;
+let mouse = null;
+let kbdEnabled = true;
+let mouseEnabled = true;
+let currentStream = null;
+let ledTimer = null;
 
 /* ==========================================================================
-   Connection Management
+   Debug Log (on-page + console)
    ========================================================================== */
+function debugLog(msg, level) {
+  const cls = {warn:'warn', err:'err'}[level] || '';
+  const el = document.createElement('div');
+  el.className = 'debug-line' + (cls ? ' ' + cls : '');
+  const ts = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+  el.textContent = ts + ' ' + msg;
+  $debugLog.appendChild(el);
+  $debugPanel.scrollTop = $debugPanel.scrollHeight;
+  (level === 'warn') ? console.warn(msg) : (level === 'err') ? console.error(msg) : console.log(msg);
+}
 
+$debugToggle.addEventListener('click', () => {
+  $debugPanel.classList.toggle('visible');
+});
+
+/* ==========================================================================
+   Status UI
+   ========================================================================== */
+function setStatus(state, text) {
+  $status.textContent = text;
+  $status.className = 'stat-val status-' + state;
+}
+
+function updateKbdStat() {
+  $kbdStat.className = 'stat-val ' + (kbdEnabled ? 'stat-on' : 'stat-off');
+  $kbdToggle.className = 'btn ' + (kbdEnabled ? 'toggle-on' : 'toggle-off');
+  $kbdToggle.textContent = kbdEnabled ? '⌨ 键盘' : '⌨ 键盘(关)';
+}
+
+function updateMouseStat() {
+  $mouseStat.className = 'stat-val ' + (mouseEnabled ? 'stat-on' : 'stat-off');
+  $mouseToggle.className = 'btn ' + (mouseEnabled ? 'toggle-on' : 'toggle-off');
+  $mouseToggle.textContent = mouseEnabled ? '🖱 鼠标' : '🖱 鼠标(关)';
+}
+
+function updateLEDsUI(leds) {
+  $ledNum.classList.toggle('on', leds.numLock);
+  $ledCaps.classList.toggle('on', leds.capsLock);
+  $ledScroll.classList.toggle('on', leds.scrollLock);
+}
+
+function updateModifiersUI(modifiers) {
+  const L = 0x01|0x10, S = 0x02|0x20, A = 0x04|0x40, M = 0x08|0x80;
+  $modCtrl.classList.toggle('on', !!(modifiers & L));
+  $modShift.classList.toggle('on', !!(modifiers & S));
+  $modAlt.classList.toggle('on', !!(modifiers & A));
+  $modMeta.classList.toggle('on', !!(modifiers & M));
+}
+
+function updateMCUStatusUI(flags) {
+  if (!flags) return;
+  const parts = [];
+  if (flags & 0x01) parts.push('就绪');
+  if (flags & 0x02) parts.push('USB1✓');
+  else parts.push('USB1✗');
+  if (flags & 0x04) parts.push('USB2✓');
+  else parts.push('USB2✗');
+  if (flags & 0x08) parts.push('键盘活动');
+  if (flags & 0x10) parts.push('鼠标活动');
+  $switchLabel.textContent = parts.join(' ');
+}
+
+/* ==========================================================================
+   Connection
+   ========================================================================== */
 async function doConnect() {
-  setStatus('connecting', 'Connecting...');
+  setStatus('connecting', '连接中...');
   try {
     await kvm.connect();
 
-    // Initialize sub-controllers
-    keyboard = new KeyboardHandler((buf) => kvm.send(buf));
+    // Init keyboard
+    keyboard = new KeyboardHandler((buf) => { if (kbdEnabled) return kvm.send(buf); });
     keyboard.active = true;
 
-    mouse = new MouseHandler((buf) => kvm.send(buf), $monitor);
+    // Init mouse
+    mouse = new MouseHandler((buf) => { if (mouseEnabled) return kvm.send(buf); }, $monitor);
     mouse.active = true;
     mouse.bind();
 
-    swCtrl = new SwitchController(
-      (buf) => kvm.send(buf),
-      () => kvm.recv()
-    );
-
-    rgbCtrl = new RGBController((buf) => kvm.send(buf));
-
-    // Query initial state
-    const swState = await swCtrl.query();
-    console.log('[app] Switch state:', JSON.stringify(swState), 'mode:', swCtrl.mode);
-    updateSwitchUI();
-
-    try {
-      const leds = await kvm.queryLEDs();
-      console.log('[app] LED state:', JSON.stringify(leds));
-      if (leds) updateLEDsUI(leds);
-    } catch (e) { console.warn('[app] LED query failed:', e.message); }
+    // Query extended status
+    debugLog('查询MCU状态...');
+    const buf = buildCommand(CMD.READ_LEDS, 0x00);
+    await kvm.send(buf);
+    const data = await kvm.recv();
+    const leds = parseLEDResponse(data);
+    const flags = data.getUint8(3);
+    if (leds) updateLEDsUI(leds);
+    updateMCUStatusUI(flags);
+    debugLog(`MCU状态: flags=0x${flags.toString(16)} ${leds ? 'LEDs: N='+leds.numLock+' C='+leds.capsLock+' S='+leds.scrollLock : ''}`);
 
     // Update UI
-    setStatus('connected', 'Connected');
+    setStatus('connected', '已连接');
     $connect.classList.add('hidden');
     $disconnect.classList.remove('hidden');
-    $monitor.classList.add('capture-active');
     $overlay.classList.add('hidden');
+    $monitor.classList.add('capture-active');
+    updateKbdStat();
+    updateMouseStat();
+
+    // Start LED poll
+    startLEDPoll();
 
   } catch (err) {
-    setStatus('error', `Connection failed: ${err.message}`);
-    console.error('[app] Connect error:', err);
+    setStatus('error', '连接失败: ' + err.message);
+    debugLog('连接失败: ' + err.message, 'err');
   }
 }
 
 async function doDisconnect() {
+  stopLEDPoll();
   keyboard && await keyboard.reset();
   keyboard = null;
-
   mouse && mouse.unbind();
   mouse && mouse.reset();
   mouse = null;
-
-  swCtrl = null;
-  rgbCtrl = null;
-
   await kvm.disconnect();
-
-  // Update UI
-  setStatus('disconnected', 'Disconnected');
+  setStatus('disconnected', '未连接');
   $connect.classList.remove('hidden');
   $disconnect.classList.add('hidden');
   $monitor.classList.remove('capture-active');
@@ -160,344 +192,68 @@ async function doDisconnect() {
 
 async function doResetMCU() {
   if (!kvm.connected) return;
-  if (!confirm('Reset the MCU? The device will restart.')) return;
-  setStatus('connecting', 'Resetting MCU...');
+  if (!confirm('确定要重置MCU吗？设备将重新启动。')) return;
+  setStatus('connecting', '重置中...');
   try {
-    const buf = resetPacket();
-    await kvm.send(buf);
-    // MCU resets; device will disconnect from USB
+    await kvm.send(resetPacket());
+    stopLEDPoll();
     await kvm.disconnect();
-    keyboard = null; mouse = null; swCtrl = null; rgbCtrl = null;
-    setStatus('disconnected', 'MCU reset. Please reconnect after device reappears.');
+    keyboard = null; mouse = null;
+    setStatus('disconnected', 'MCU已重置，请重新连接');
     $connect.classList.remove('hidden');
     $disconnect.classList.add('hidden');
     $monitor.classList.remove('capture-active');
   } catch (err) {
-    setStatus('error', `Reset failed: ${err.message}`);
+    setStatus('error', '重置失败: ' + err.message);
   }
 }
 
 /* ==========================================================================
-   USB Switch UI
+   Keyboard/Mouse Toggles
    ========================================================================== */
+$kbdToggle.addEventListener('click', () => {
+  kbdEnabled = !kbdEnabled;
+  updateKbdStat();
+  if (keyboard) keyboard.active = kbdEnabled;
+  if (!kbdEnabled && keyboard) keyboard.reset();
+  debugLog(kbdEnabled ? '键盘: 启用' : '键盘: 禁用');
+});
 
-function updateSwitchUI() {
-  if (!swCtrl) return;
-  const mode = swCtrl.mode;
-  $switchFloat.classList.toggle('active',  mode === 'float');
-  $switchMaster.classList.toggle('active', mode === 'master');
-  $switchTarget.classList.toggle('active', mode === 'target');
-  const labels = { float: 'Floating', master: 'Master (Host)', target: 'Target (Controlled)', unknown: 'Unknown' };
-  $switchLabel.textContent = labels[mode] || 'Unknown';
-}
-
-async function setSwitch(mode) {
-  if (!swCtrl) return;
-  try {
-    if (mode === 'float')  await swCtrl.setFloat();
-    if (mode === 'master') await swCtrl.setMaster();
-    if (mode === 'target') await swCtrl.setTarget();
-    updateSwitchUI();
-  } catch (err) {
-    console.error('[app] Switch error:', err);
-  }
-}
+$mouseToggle.addEventListener('click', () => {
+  mouseEnabled = !mouseEnabled;
+  updateMouseStat();
+  if (mouse) mouse.active = mouseEnabled;
+  if (!mouseEnabled && mouse) mouse.reset();
+  debugLog(mouseEnabled ? '鼠标: 启用' : '鼠标: 禁用');
+});
 
 /* ==========================================================================
    Mouse Mode
    ========================================================================== */
-
 function setMouseMode(mode) {
   if (!mouse) return;
   if (mode === 'rel') {
-    mouse.relMode = false; // Will be set true on pointer lock
+    mouse.relMode = false;
     $mouseRel.classList.add('active');
     $mouseAbs.classList.remove('active');
     $monitor.style.cursor = 'none';
   } else {
     mouse.relMode = false;
     mouse.stopRelTimer();
-    document.exitPointerLock();
+    if (document.pointerLockElement) document.exitPointerLock();
     $mouseAbs.classList.add('active');
     $mouseRel.classList.remove('active');
     $monitor.style.cursor = 'crosshair';
   }
+  debugLog('鼠标模式: ' + (mode === 'rel' ? '相对' : '绝对'));
 }
+
+$mouseAbs.addEventListener('click', () => setMouseMode('abs'));
+$mouseRel.addEventListener('click', () => setMouseMode('rel'));
 
 /* ==========================================================================
-   Keyboard LEDs & Modifiers UI
+   LED Polling
    ========================================================================== */
-
-function updateLEDsUI(leds) {
-  $ledNum.classList.toggle('on', leds.numLock);
-  $ledCaps.classList.toggle('on', leds.capsLock);
-  $ledScroll.classList.toggle('on', leds.scrollLock);
-}
-
-function updateModifiersUI(modifiers) {
-  const LCTRL = 0x01, LSHIFT = 0x02, LALT = 0x04, LGUI = 0x08;
-  const RCTRL = 0x10, RSHIFT = 0x20, RALT = 0x40, RGUI = 0x80;
-  $modCtrl.classList.toggle('on',  !!(modifiers & (LCTRL | RCTRL)));
-  $modShift.classList.toggle('on', !!(modifiers & (LSHIFT | RSHIFT)));
-  $modAlt.classList.toggle('on',   !!(modifiers & (LALT | RALT)));
-  $modMeta.classList.toggle('on',  !!(modifiers & (LGUI | RGUI)));
-}
-
-/* ==========================================================================
-   Paste
-   ========================================================================== */
-
-async function doPaste() {
-  if (!keyboard) return;
-  const text = $pasteArea.value;
-  if (!text) return;
-  $pasteSend.disabled = true;
-  $pasteSend.textContent = 'Sending...';
-  try {
-    await keyboard.typeText(text, 5);
-  } catch (err) {
-    console.error('[app] Paste error:', err);
-  }
-  $pasteSend.disabled = false;
-  $pasteSend.textContent = 'Send';
-}
-
-/* ==========================================================================
-   Special Key Panel (for Android)
-   ========================================================================== */
-
-function setupKeyPanel() {
-  const btns = $keyPanel.querySelectorAll('button[data-key]');
-  btns.forEach(btn => {
-    btn.addEventListener('pointerdown', async (e) => {
-      e.preventDefault();
-      if (!keyboard) return;
-      const code = btn.dataset.key;
-      await keyboard.holdModifier(code);
-    });
-    btn.addEventListener('pointerup', async (e) => {
-      e.preventDefault();
-      if (!keyboard) return;
-      const code = btn.dataset.key;
-      await keyboard.releaseModifier(code);
-    });
-    btn.addEventListener('pointerleave', async (e) => {
-      if (!keyboard) return;
-      const code = btn.dataset.key;
-      await keyboard.releaseModifier(code);
-    });
-  });
-}
-
-/* ==========================================================================
-   RGB LED
-   ========================================================================== */
-
-async function doSetRGB() {
-  if (!rgbCtrl) return;
-  const hex = $rgbColor.value;
-  await rgbCtrl.setHex(hex);
-}
-
-/* ==========================================================================
-   Fullscreen
-   ========================================================================== */
-
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
-  } else {
-    document.exitFullscreen();
-  }
-}
-
-/* ==========================================================================
-   Video Capture (MS2131 UVC via getUserMedia)
-   ========================================================================== */
-
-const $cameraSelect  = $('$cameraSelect');
-const $cameraRefresh = $('$cameraRefresh');
-
-let videoDevices = [];  // cached device list
-let currentStream = null;
-
-/**
- * Enumerate ALL media devices and populate the camera selector.
- */
-async function refreshCameraList() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    debugLog(`Found ${devices.length} media devices total`);
-
-    // Log all device types for debugging
-    const kinds = {};
-    devices.forEach(d => {
-      if (!kinds[d.kind]) kinds[d.kind] = [];
-      kinds[d.kind].push(`"${d.label || '(unnamed)'}"`);
-    });
-    for (const [kind, labels] of Object.entries(kinds)) {
-      debugLog(`  ${kind}: ${labels.join(', ')}`);
-    }
-
-    videoDevices = devices.filter(d => d.kind === 'videoinput');
-    debugLog(`Video inputs: ${videoDevices.length}`);
-
-    // Populate selector
-    $cameraSelect.innerHTML = '<option value="">No Camera</option>';
-    videoDevices.forEach((d, i) => {
-      const opt = document.createElement('option');
-      opt.value = d.deviceId;
-      const label = d.label || `Camera ${i + 1} (${d.deviceId.slice(0, 8)}...)`;
-      const isUVC = /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect|video\s*capture/i.test(label);
-      opt.textContent = isUVC ? `★ ${label}` : label;
-      $cameraSelect.appendChild(opt);
-    });
-
-    // Auto-select UVC device or last device
-    const uvcIdx = videoDevices.findIndex(d =>
-      /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect|video\s*capture/i.test(d.label || '')
-    );
-    if (uvcIdx >= 0) {
-      $cameraSelect.value = videoDevices[uvcIdx].deviceId;
-      debugLog(`Auto-selected UVC: ${videoDevices[uvcIdx].label}`);
-    } else if (videoDevices.length > 0) {
-      $cameraSelect.value = videoDevices[videoDevices.length - 1].deviceId;
-      debugLog(`Auto-selected last camera: ${videoDevices[videoDevices.length - 1].label || '(unnamed)'}`);
-    }
-  } catch (err) {
-    debugLog(`Camera enum failed: ${err.message}`, 'err');
-  }
-}
-
-/**
- * Start video stream from the selected camera.
- */
-async function startCamera(deviceId) {
-  if (currentStream) {
-    currentStream.getTracks().forEach(t => t.stop());
-    currentStream = null;
-  }
-
-  if (!deviceId) {
-    $monitor.srcObject = null;
-    $monitor.classList.remove('has-video');
-    $overlay.classList.remove('hidden');
-    return;
-  }
-
-  // Try with exact deviceId first, then fall back to any camera
-  const constraintsList = [
-    { video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-    { video: { deviceId: { exact: deviceId } }, audio: false },
-    { video: { facingMode: 'environment' }, audio: false },
-    { video: true, audio: false },
-  ];
-
-  for (let i = 0; i < constraintsList.length; i++) {
-    try {
-      debugLog(`Trying camera with constraints #${i + 1}...`);
-      currentStream = await navigator.mediaDevices.getUserMedia(constraintsList[i]);
-      $monitor.srcObject = currentStream;
-      await $monitor.play();
-      const track = currentStream.getVideoTracks()[0];
-      debugLog(`Video OK: ${track.label} ${track.getSettings().width}x${track.getSettings().height}`);
-      $monitor.classList.add('has-video');
-      $overlay.classList.add('hidden');
-      return;
-    } catch (err) {
-      debugLog(`  Failed: ${err.message}`, 'warn');
-    }
-  }
-
-  debugLog('All camera attempts failed', 'err');
-  $monitor.srcObject = null;
-  $monitor.classList.remove('has-video');
-  $overlay.classList.remove('hidden');
-}
-
-/**
- * Initialize camera list and setup selector events.
- */
-async function initVideo() {
-  debugLog('Initializing camera...');
-
-  // Request camera permission first (required for labels on some browsers)
-  let permOk = false;
-  try {
-    const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    tmp.getTracks().forEach(t => t.stop());
-    permOk = true;
-    debugLog('Camera permission granted');
-  } catch (e) {
-    debugLog(`Camera permission: ${e.message}`, 'warn');
-  }
-
-  await refreshCameraList();
-
-  // Auto-start if a device was selected and we have permission
-  if (permOk) {
-    const selectedId = $cameraSelect.value;
-    if (selectedId) {
-      debugLog(`Starting camera: ${selectedId.slice(0, 16)}...`);
-      await startCamera(selectedId);
-    }
-  } else {
-    debugLog('No camera permission - select a camera and click ↻ to retry');
-  }
-}
-
-// Camera selector change event
-$cameraSelect.addEventListener('change', () => {
-  startCamera($cameraSelect.value);
-});
-
-// Refresh button
-$cameraRefresh.addEventListener('click', async () => {
-  await refreshCameraList();
-  startCamera($cameraSelect.value);
-});
-
-/* ==========================================================================
-   Status Bar
-   ========================================================================== */
-
-function setStatus(state, text) {
-  $status.textContent = text;
-  $status.className = `status-${state}`;
-}
-
-/* ==========================================================================
-   Keyboard Focus Management
-   ========================================================================== */
-
-$monitor.addEventListener('click', () => {
-  $monitor.focus();
-  // Update overlay hint
-  if (!kvm.connected) {
-    $overlay.textContent = 'Click "Connect" to start';
-  }
-});
-
-// Reset keyboard on focus loss
-$monitor.addEventListener('blur', () => {
-  if (keyboard) {
-    keyboard.reset().catch(() => {});
-  }
-});
-
-// Capture keyboard events on the monitor element
-$monitor.addEventListener('keydown', (e) => {
-  if (!keyboard || !keyboard.active) return;
-  keyboard.handleKeyDown(e);
-});
-
-$monitor.addEventListener('keyup', (e) => {
-  if (!keyboard || !keyboard.active) return;
-  keyboard.handleKeyUp(e);
-});
-
-// Poll keyboard LEDs every 2 seconds while connected
-let ledTimer = null;
 function startLEDPoll() {
   stopLEDPoll();
   ledTimer = setInterval(async () => {
@@ -508,86 +264,207 @@ function startLEDPoll() {
       const data = await kvm.recv();
       const leds = parseLEDResponse(data);
       if (leds) updateLEDsUI(leds);
-    } catch (e) { /* poll errors are expected occasionally */ }
+      const flags = data.getUint8(3);
+      updateMCUStatusUI(flags);
+    } catch (e) { /* ignore poll errors */ }
   }, 2000);
 }
 
 function stopLEDPoll() {
   if (ledTimer) { clearInterval(ledTimer); ledTimer = null; }
 }
-// Import parseLEDResponse
-import { parseLEDResponse } from './protocol.js';
 
 /* ==========================================================================
-   Event Bindings
+   Special Keys Panel
    ========================================================================== */
+function setupKeyPanel() {
+  $keyPanel.querySelectorAll('button[data-key]').forEach(btn => {
+    btn.addEventListener('pointerdown', async (e) => {
+      e.preventDefault();
+      if (!keyboard || !kbdEnabled) return;
+      await keyboard.holdModifier(btn.dataset.key);
+    });
+    btn.addEventListener('pointerup', async (e) => {
+      e.preventDefault();
+      if (!keyboard) return;
+      await keyboard.releaseModifier(btn.dataset.key);
+    });
+    btn.addEventListener('pointerleave', async () => {
+      if (!keyboard) return;
+      keyboard.releaseModifier(btn.dataset.key);
+    });
+  });
+}
 
-$connect.addEventListener('click', doConnect);
-$disconnect.addEventListener('click', doDisconnect);
-$resetMc.addEventListener('click', doResetMCU);
+$keyToggle.addEventListener('click', () => $keyPanel.classList.toggle('visible'));
 
-$switchFloat.addEventListener('click',  () => setSwitch('float'));
-$switchMaster.addEventListener('click', () => setSwitch('master'));
-$switchTarget.addEventListener('click', () => setSwitch('target'));
+/* ==========================================================================
+   Clipboard
+   ========================================================================== */
+async function doPaste() {
+  if (!keyboard || !kbdEnabled) return;
+  const text = $clipArea.value;
+  if (!text) return;
+  $clipSend.disabled = true;
+  $clipSend.textContent = '发送中...';
+  try {
+    await keyboard.typeText(text, 5);
+    debugLog('剪贴板: 已发送 ' + text.length + ' 字符');
+  } catch (err) {
+    debugLog('剪贴板失败: ' + err.message, 'err');
+  }
+  $clipSend.disabled = false;
+  $clipSend.textContent = '发送';
+}
 
-$mouseAbs.addEventListener('click', () => setMouseMode('abs'));
-$mouseRel.addEventListener('click', () => setMouseMode('rel'));
+$clipSend.addEventListener('click', doPaste);
 
-$fullscreen.addEventListener('click', toggleFullscreen);
-$pasteSend.addEventListener('click', doPaste);
+/* ==========================================================================
+   RGB LED
+   ========================================================================== */
+async function doSetRGB() {
+  if (!kvm.connected) return;
+  const hex = $rgbColor.value;
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  if (isNaN(r)) return;
+  const buf = buildCommand(CMD.SET_RGB, 0x00, r, g, b);
+  await kvm.send(buf);
+}
+
 $rgbSend.addEventListener('click', doSetRGB);
 
-$keyToggle.addEventListener('click', () => {
-  $keyPanel.classList.toggle('visible');
-});
+/* ==========================================================================
+   Video
+   ========================================================================== */
+async function refreshCameraList() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevs = devices.filter(d => d.kind === 'videoinput');
+    debugLog('摄像头: 找到 ' + videoDevs.length + ' 个');
+    videoDevs.forEach(d => debugLog('  ' + (d.label || '(未命名)')));
 
-setupKeyPanel();
+    $cameraSelect.innerHTML = '<option value="">无摄像头</option>';
+    videoDevs.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      const label = d.label || '摄像头 ' + (i+1);
+      const isUVC = /ms2131|oray|q0\.5|usb video|uvc|hdmi|video\s*capture|collect/i.test(label);
+      opt.textContent = isUVC ? '★ ' + label : label;
+      $cameraSelect.appendChild(opt);
+    });
 
-// Global keyboard hook for fullscreen toggle and escape
-document.addEventListener('keydown', (e) => {
-  // Ctrl+Shift+F for fullscreen
-  if (e.ctrlKey && e.shiftKey && e.code === 'KeyF') {
-    e.preventDefault();
-    toggleFullscreen();
+    const uvcIdx = videoDevs.findIndex(d =>
+      /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect/i.test(d.label || '')
+    );
+    if (uvcIdx >= 0) {
+      $cameraSelect.value = videoDevs[uvcIdx].deviceId;
+    } else if (videoDevs.length > 0) {
+      $cameraSelect.value = videoDevs[videoDevs.length - 1].deviceId;
+    }
+  } catch (err) {
+    debugLog('摄像头枚举失败: ' + err.message, 'warn');
   }
-  // Escape to exit relative mouse mode
-  if (e.code === 'Escape' && mouse && mouse.relMode) {
-    setMouseMode('abs');
+}
+
+async function startCamera(deviceId) {
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
   }
+  if (!deviceId) {
+    $monitor.srcObject = null;
+    $monitor.classList.remove('has-video');
+    return;
+  }
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    $monitor.srcObject = currentStream;
+    await $monitor.play();
+    const track = currentStream.getVideoTracks()[0];
+    const s = track.getSettings();
+    debugLog('视频: ' + track.label + ' ' + s.width + 'x' + s.height);
+    $monitor.classList.add('has-video');
+    $overlay.classList.add('hidden');
+  } catch (err) {
+    debugLog('视频启动失败: ' + err.message, 'warn');
+  }
+}
+
+$cameraSelect.addEventListener('change', () => startCamera($cameraSelect.value));
+$cameraRefresh.addEventListener('click', () => { refreshCameraList(); startCamera($cameraSelect.value); });
+
+/* ==========================================================================
+   Fullscreen
+   ========================================================================== */
+$fullscreen.addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
 });
 
 /* ==========================================================================
-   Initialization
+   Keyboard/Mouse Events on Monitor
    ========================================================================== */
+$monitor.addEventListener('click', () => { $monitor.focus(); });
+$monitor.addEventListener('blur', () => { if (keyboard) keyboard.reset().catch(()=>{}); });
+$monitor.addEventListener('keydown', (e) => { if (keyboard && kbdEnabled) keyboard.handleKeyDown(e); });
+$monitor.addEventListener('keyup', (e) => { if (keyboard && kbdEnabled) keyboard.handleKeyUp(e); });
 
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyF') { e.preventDefault(); $fullscreen.click(); }
+  if (e.code === 'Escape' && mouse && mouse.relMode) setMouseMode('abs');
+});
+
+/* ==========================================================================
+   Init
+   ========================================================================== */
 async function init() {
-  // Check WebUSB support
   if (!navigator.usb) {
-    setStatus('error', 'WebUSB not supported in this browser. Use Chrome/Edge 61+.');
+    setStatus('error', '浏览器不支持WebUSB，请使用Chrome/Edge 61+');
     $connect.disabled = true;
+    debugLog('WebUSB不支持', 'err');
     return;
   }
 
-  // Try to reconnect to a previously paired device
+  setupKeyPanel();
+
+  // Try camera init on first user interaction
+  $monitor.addEventListener('click', async function initVideoOnce() {
+    $monitor.removeEventListener('click', initVideoOnce);
+    try {
+      const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      tmp.getTracks().forEach(t => t.stop());
+      debugLog('摄像头权限已获取');
+    } catch (e) {
+      debugLog('摄像头权限被拒绝: ' + e.message, 'warn');
+    }
+    await refreshCameraList();
+    const sel = $cameraSelect.value;
+    if (sel) await startCamera(sel);
+  }, { once: true });
+
+  // Try reconnect
   try {
     const devices = await navigator.usb.getDevices();
     if (devices.some(d => d.vendorId === 0x413D && d.productId === 0x2107)) {
-      $overlay.textContent = 'Click "Connect" to start, or click here to auto-reconnect';
+      $overlay.textContent = '点击"连接MCU"开始，或点击此处自动重连';
     }
-  } catch (e) { /* getDevices may fail silently */ }
+  } catch (e) {}
 
-  // Init video (may need user interaction, so defer to first click)
-  $monitor.addEventListener('click', function initVideoOnce() {
-    $monitor.removeEventListener('click', initVideoOnce);
-    initVideo();
-  }, { once: true });
+  $connect.addEventListener('click', doConnect);
+  $disconnect.addEventListener('click', doDisconnect);
+  $resetMc.addEventListener('click', doResetMCU);
 
-  console.log('[app] KVM-Card-Mini Web Client initialized');
-  console.log('[app] WebUSB:', !!navigator.usb);
-  console.log('[app] getUserMedia:', !!navigator.mediaDevices?.getUserMedia);
+  debugLog('KVM-Card-Mini Web客户端就绪');
+  debugLog('WebUSB: ' + (!!navigator.usb ? '支持' : '不支持'));
+  debugLog('getUserMedia: ' + (!!navigator.mediaDevices?.getUserMedia ? '支持' : '不支持'));
 }
 
 init().catch(err => {
-  console.error('[app] Init error:', err);
-  setStatus('error', `Initialization error: ${err.message}`);
+  debugLog('初始化错误: ' + err.message, 'err');
+  setStatus('error', '初始化错误: ' + err.message);
 });
