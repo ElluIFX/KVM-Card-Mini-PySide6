@@ -25,6 +25,7 @@ html, body { height: 100%; background: var(--bg); color: var(--fg); font-family:
 /* Video */
 #\$videoContainer { flex: 1; position: relative; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 #\$monitor { width: 100%; height: 100%; object-fit: contain; background: #0a0a10; outline: none; }
+#\$mjpeg { display: none; width: 100%; height: 100%; object-fit: contain; background: #0a0a10; }
 #\$monitor.capture-active { cursor: crosshair; }
 #\$overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: var(--fg2); font-size: 1.1rem; pointer-events: none; text-align: center; }
 #\$overlay.hidden { display: none; }

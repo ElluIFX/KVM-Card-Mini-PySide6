@@ -32,6 +32,7 @@ const $mouseStat = $('$mouseStat');
 const $cameraSelect = $('$cameraSelect');
 const $cameraRefresh = $('$cameraRefresh');
 const $fullscreen = $('$fullscreen');
+const $mjpeg      = $('$mjpeg');
 const $keyToggle  = $('$keyToggle');
 const $keyPanel   = $('$keyPanel');
 const $clipArea   = $('$clipArea');
@@ -183,6 +184,9 @@ async function doDisconnect() {
   $connect.classList.remove('hidden');
   $disconnect.classList.add('hidden');
   $monitor.classList.remove('capture-active');
+  $monitor.classList.remove('hidden');
+  $mjpeg.style.display = 'none';
+  $mjpeg.src = '';
   $overlay.classList.remove('hidden');
   updateLEDsUI({ numLock: false, capsLock: false, scrollLock: false });
   updateModifiersUI(0);
@@ -374,11 +378,40 @@ async function startCamera(deviceId) {
     $overlay.classList.add('hidden');
   } catch (err) {
     debugLog('视频启动失败: ' + err.message, 'warn');
+    // Fallback: try MJPEG from USB Camera Server
+    tryMJPEG();
   }
 }
 
-$cameraSelect.addEventListener('change', () => startCamera($cameraSelect.value));
-$cameraRefresh.addEventListener('click', () => { refreshCameraList(); startCamera($cameraSelect.value); });
+// If no camera selected, try MJPEG automatically
+$cameraSelect.addEventListener('change', () => {
+  const id = $cameraSelect.value;
+  if (id) startCamera(id); else tryMJPEG();
+});
+
+$cameraRefresh.addEventListener('click', () => { refreshCameraList(); const id = $cameraSelect.value; if (id) startCamera(id); else tryMJPEG(); });
+
+/* ==========================================================================
+   MJPEG fallback for Android (USB Camera Server: http://localhost:8080/stream)
+   ========================================================================== */
+function tryMJPEG() {
+  const mjpegUrl = 'http://localhost:8080/stream';
+  debugLog('MJPEG: 尝试 ' + mjpegUrl);
+  $mjpeg.src = mjpegUrl;
+  $mjpeg.onload = () => {
+    debugLog('MJPEG: 连接成功');
+    $monitor.classList.add('hidden');
+    $mjpeg.style.display = 'block';
+    $overlay.classList.add('hidden');
+  };
+  $mjpeg.onerror = () => {
+    debugLog('MJPEG: 连接失败，USB Camera Server 未运行', 'warn');
+    $mjpeg.src = '';
+  };
+}
+
+// Try MJPEG when getUserMedia fails or no camera selected
+async function startCamera(deviceId) {
 
 /* ==========================================================================
    Fullscreen
