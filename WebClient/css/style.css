@@ -343,6 +343,26 @@ html, body {
 }
 #\$pasteArea::placeholder { color: var(--fg2); }
 
+/* Debug panel */
+.debug-panel {
+  display: none;
+  padding: 8px 10px;
+  background: #0a0a0f;
+  border-top: 1px solid var(--bg3);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  line-height: 1.5;
+  color: #8f8;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.debug-panel.visible { display: block; }
+.debug-line { padding: 1px 0; }
+.debug-line.warn { color: #fa0; }
+.debug-line.err  { color: #f55; }
+
 /* ==========================================================================
    Fullscreen adjustments
    ========================================================================== */

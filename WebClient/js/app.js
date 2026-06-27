@@ -42,6 +42,30 @@ const $rgbSend    = $('$rgbSend');
 
 const $keyPanel   = $('$keyPanel');
 const $keyToggle  = $('$keyToggle');
+const $debugPanel = $('$debugPanel');
+const $debugLog   = $('$debugLog');
+
+/* ==========================================================================
+   On-page debug logger (for Android where DevTools is not available)
+   ========================================================================== */
+function debugLog(msg, level = 'info') {
+  const cls = level === 'warn' ? 'warn' : (level === 'err' ? 'err' : '');
+  const el = document.createElement('div');
+  el.className = 'debug-line' + (cls ? ' ' + cls : '');
+  el.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+  $debugLog.appendChild(el);
+  // Scroll to bottom
+  $debugPanel.scrollTop = $debugPanel.scrollHeight;
+  // Also log to console
+  if (level === 'warn') console.warn(msg);
+  else if (level === 'err') console.error(msg);
+  else console.log(msg);
+}
+
+// Toggle debug panel by tapping status bar
+$status.addEventListener('click', () => {
+  $debugPanel.classList.toggle('visible');
+});
 
 const $ledNum    = $('$ledNum');
 const $ledCaps   = $('$ledCaps');
@@ -298,40 +322,50 @@ let videoDevices = [];  // cached device list
 let currentStream = null;
 
 /**
- * Enumerate video devices and populate the camera selector.
- * Call after obtaining camera permission.
+ * Enumerate ALL media devices and populate the camera selector.
  */
 async function refreshCameraList() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
+    debugLog(`Found ${devices.length} media devices total`);
+
+    // Log all device types for debugging
+    const kinds = {};
+    devices.forEach(d => {
+      if (!kinds[d.kind]) kinds[d.kind] = [];
+      kinds[d.kind].push(`"${d.label || '(unnamed)'}"`);
+    });
+    for (const [kind, labels] of Object.entries(kinds)) {
+      debugLog(`  ${kind}: ${labels.join(', ')}`);
+    }
+
     videoDevices = devices.filter(d => d.kind === 'videoinput');
-    console.log('[app] Video devices:', videoDevices.map(d => `"${d.label || '(unnamed)'}"`));
+    debugLog(`Video inputs: ${videoDevices.length}`);
 
     // Populate selector
     $cameraSelect.innerHTML = '<option value="">No Camera</option>';
     videoDevices.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      const label = d.label || `Camera ${i + 1}`;
-      // Mark probable MS2131/UVC devices
-      const isUVC = /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect/i.test(label);
+      const label = d.label || `Camera ${i + 1} (${d.deviceId.slice(0, 8)}...)`;
+      const isUVC = /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect|video\s*capture/i.test(label);
       opt.textContent = isUVC ? `★ ${label}` : label;
       $cameraSelect.appendChild(opt);
     });
 
-    // Auto-select the first UVC device, or the last device (external cameras after built-in)
+    // Auto-select UVC device or last device
     const uvcIdx = videoDevices.findIndex(d =>
-      /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect/i.test(d.label || '')
+      /ms2131|oray|q0\.5|usb video|uvc|hdmi|collect|video\s*capture/i.test(d.label || '')
     );
     if (uvcIdx >= 0) {
       $cameraSelect.value = videoDevices[uvcIdx].deviceId;
-      console.log('[app] Auto-selected UVC device:', videoDevices[uvcIdx].label);
+      debugLog(`Auto-selected UVC: ${videoDevices[uvcIdx].label}`);
     } else if (videoDevices.length > 0) {
-      // Pick the last one (external usually after built-in)
       $cameraSelect.value = videoDevices[videoDevices.length - 1].deviceId;
+      debugLog(`Auto-selected last camera: ${videoDevices[videoDevices.length - 1].label || '(unnamed)'}`);
     }
   } catch (err) {
-    console.warn('[app] Camera enumeration failed:', err.message);
+    debugLog(`Camera enum failed: ${err.message}`, 'err');
   }
 }
 
@@ -339,7 +373,6 @@ async function refreshCameraList() {
  * Start video stream from the selected camera.
  */
 async function startCamera(deviceId) {
-  // Stop previous stream
   if (currentStream) {
     currentStream.getTracks().forEach(t => t.stop());
     currentStream = null;
@@ -352,46 +385,64 @@ async function startCamera(deviceId) {
     return;
   }
 
-  try {
-    currentStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        deviceId: { exact: deviceId },
-        width:  { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    });
-    $monitor.srcObject = currentStream;
-    await $monitor.play();
-    console.log('[app] Video stream started on:', deviceId.slice(0, 16) + '...');
-    $monitor.classList.add('has-video');
-    $overlay.classList.add('hidden');
-  } catch (err) {
-    console.warn('[app] Failed to start camera:', err.message);
-    $monitor.srcObject = null;
-    $monitor.classList.remove('has-video');
-    $overlay.classList.remove('hidden');
+  // Try with exact deviceId first, then fall back to any camera
+  const constraintsList = [
+    { video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+    { video: { deviceId: { exact: deviceId } }, audio: false },
+    { video: { facingMode: 'environment' }, audio: false },
+    { video: true, audio: false },
+  ];
+
+  for (let i = 0; i < constraintsList.length; i++) {
+    try {
+      debugLog(`Trying camera with constraints #${i + 1}...`);
+      currentStream = await navigator.mediaDevices.getUserMedia(constraintsList[i]);
+      $monitor.srcObject = currentStream;
+      await $monitor.play();
+      const track = currentStream.getVideoTracks()[0];
+      debugLog(`Video OK: ${track.label} ${track.getSettings().width}x${track.getSettings().height}`);
+      $monitor.classList.add('has-video');
+      $overlay.classList.add('hidden');
+      return;
+    } catch (err) {
+      debugLog(`  Failed: ${err.message}`, 'warn');
+    }
   }
+
+  debugLog('All camera attempts failed', 'err');
+  $monitor.srcObject = null;
+  $monitor.classList.remove('has-video');
+  $overlay.classList.remove('hidden');
 }
 
 /**
  * Initialize camera list and setup selector events.
  */
 async function initVideo() {
+  debugLog('Initializing camera...');
+
   // Request camera permission first (required for labels on some browsers)
+  let permOk = false;
   try {
     const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     tmp.getTracks().forEach(t => t.stop());
+    permOk = true;
+    debugLog('Camera permission granted');
   } catch (e) {
-    console.warn('[app] Camera permission not granted:', e.message);
+    debugLog(`Camera permission: ${e.message}`, 'warn');
   }
 
   await refreshCameraList();
 
-  // Auto-start if a device was selected
-  const selectedId = $cameraSelect.value;
-  if (selectedId) {
-    await startCamera(selectedId);
+  // Auto-start if a device was selected and we have permission
+  if (permOk) {
+    const selectedId = $cameraSelect.value;
+    if (selectedId) {
+      debugLog(`Starting camera: ${selectedId.slice(0, 16)}...`);
+      await startCamera(selectedId);
+    }
+  } else {
+    debugLog('No camera permission - select a camera and click ↻ to retry');
   }
 }
 
