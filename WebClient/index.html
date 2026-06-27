@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>KVM Card Mini — Web Client</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ==================================================================
+       Main Container
+       ================================================================== -->
+  <main id="$main">
+
+    <!-- Video Display Area -->
+    <div id="$videoContainer">
+      <video id="$monitor" tabindex="0" autoplay playsinline muted></video>
+      <div id="$overlay">Click "Connect" to start KVM session</div>
+    </div>
+
+    <!-- ==================================================================
+         Toolbar
+         ================================================================== -->
+    <div id="$toolbar">
+
+      <!-- Connection -->
+      <div class="toolbar-group">
+        <button id="$connect" class="btn btn-primary">Connect</button>
+        <button id="$disconnect" class="btn btn-danger hidden">Disconnect</button>
+        <button id="$resetMc" class="btn">Reset MCU</button>
+      </div>
+
+      <!-- USB Switch -->
+      <div class="toolbar-group switch-group">
+        <span class="label">Switch:</span>
+        <button id="$switchFloat"  class="btn btn-sm">Float</button>
+        <button id="$switchMaster" class="btn btn-sm active">Master</button>
+        <button id="$switchTarget" class="btn btn-sm">Target</button>
+        <span id="$switchLabel" class="mode-label">Master (Host)</span>
+      </div>
+
+      <!-- Mouse Mode -->
+      <div class="toolbar-group">
+        <button id="$mouseAbs" class="btn btn-sm active" title="Absolute mouse (default)">Abs</button>
+        <button id="$mouseRel" class="btn btn-sm" title="Relative mouse (pointer lock)">Rel</button>
+      </div>
+
+      <!-- Fullscreen -->
+      <button id="$fullscreen" class="btn" title="Toggle Fullscreen (Ctrl+Shift+F)">⛶</button>
+
+      <!-- Special Keys Toggle (for Android) -->
+      <button id="$keyToggle" class="btn btn-sm" title="Show special keys panel">Keys</button>
+    </div>
+
+    <!-- ==================================================================
+         Special Keys Panel (for Android tablets)
+         ================================================================== -->
+    <div id="$keyPanel">
+      <div class="key-row">
+        <button data-key="Escape" class="key-btn">Esc</button>
+        <button data-key="Tab" class="key-btn">Tab</button>
+        <button data-key="F1" class="key-btn">F1</button>
+        <button data-key="F2" class="key-btn">F2</button>
+        <button data-key="F3" class="key-btn">F3</button>
+        <button data-key="F4" class="key-btn">F4</button>
+      </div>
+      <div class="key-row">
+        <button data-key="F5" class="key-btn">F5</button>
+        <button data-key="F6" class="key-btn">F6</button>
+        <button data-key="F7" class="key-btn">F7</button>
+        <button data-key="F8" class="key-btn">F8</button>
+        <button data-key="F9" class="key-btn">F9</button>
+        <button data-key="F10" class="key-btn">F10</button>
+      </div>
+      <div class="key-row">
+        <button data-key="F11" class="key-btn">F11</button>
+        <button data-key="F12" class="key-btn">F12</button>
+        <button data-key="ControlLeft" class="key-btn mod-btn">Ctrl</button>
+        <button data-key="AltLeft" class="key-btn mod-btn">Alt</button>
+        <button data-key="MetaLeft" class="key-btn mod-btn">Win</button>
+        <button data-key="Delete" class="key-btn">Del</button>
+      </div>
+      <div class="key-row">
+        <button data-key="ArrowUp" class="key-btn">↑</button>
+        <button data-key="ArrowLeft" class="key-btn">←</button>
+        <button data-key="ArrowDown" class="key-btn">↓</button>
+        <button data-key="ArrowRight" class="key-btn">→</button>
+        <button data-key="Home" class="key-btn">Home</button>
+        <button data-key="End" class="key-btn">End</button>
+        <button data-key="PageUp" class="key-btn">PgUp</button>
+        <button data-key="PageDown" class="key-btn">PgDn</button>
+      </div>
+    </div>
+
+    <!-- ==================================================================
+         Bottom Bar: Status + Extras
+         ================================================================== -->
+    <div id="$bottombar">
+
+      <div id="$statusRow">
+        <span id="$status" class="status-disconnected">Disconnected</span>
+
+        <!-- Keyboard LEDs -->
+        <span class="leds">
+          <span id="$ledNum" class="led" title="Num Lock">Num</span>
+          <span id="$ledCaps" class="led" title="Caps Lock">Caps</span>
+          <span id="$ledScroll" class="led" title="Scroll Lock">Scr</span>
+        </span>
+
+        <!-- Modifier Indicators -->
+        <span class="mods">
+          <span id="$modCtrl" class="mod" title="Ctrl">Ctrl</span>
+          <span id="$modShift" class="mod" title="Shift">Shift</span>
+          <span id="$modAlt" class="mod" title="Alt">Alt</span>
+          <span id="$modMeta" class="mod" title="Meta/Win">Win</span>
+        </span>
+      </div>
+
+      <div id="$extrasRow">
+        <!-- RGB LED -->
+        <span class="extras-group">
+          <label for="$rgbColor">RGB:</label>
+          <input type="color" id="$rgbColor" value="#00ff00">
+          <button id="$rgbSend" class="btn btn-sm">Set</button>
+        </span>
+
+        <!-- Paste -->
+        <span class="extras-group paste-group">
+          <textarea id="$pasteArea" rows="1" placeholder="Paste text to send to target..."></textarea>
+          <button id="$pasteSend" class="btn btn-sm">Send</button>
+        </span>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

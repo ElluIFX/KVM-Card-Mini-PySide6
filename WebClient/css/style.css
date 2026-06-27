@@ -1,0 +1,373 @@
+/* ==========================================================================
+   style.css — KVM-Card-Mini Web Client — Dark Theme
+   ========================================================================== */
+
+:root {
+  --bg:        #121218;
+  --bg2:       #1a1a24;
+  --bg3:       #242430;
+  --fg:        #e0e0e0;
+  --fg2:       #999;
+  --accent:    #4da6ff;
+  --accent2:   #3388ee;
+  --danger:    #e05555;
+  --success:   #4caf50;
+  --warning:   #ffa726;
+  --radius:    6px;
+  --font:      system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono:      'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   Main Layout
+   ========================================================================== */
+
+#\$main {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport for mobile */
+}
+
+/* ==========================================================================
+   Video Area
+   ========================================================================== */
+
+#\$videoContainer {
+  flex: 1;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#\$monitor {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #0a0a10;
+  outline: none;
+}
+
+#\$monitor.capture-active {
+  cursor: crosshair;
+}
+
+#\$monitor.has-video {
+  background: #000;
+}
+
+#\$overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--fg2);
+  font-size: 1.2rem;
+  text-align: center;
+  pointer-events: none;
+  padding: 2rem;
+}
+
+#\$overlay.hidden {
+  display: none;
+}
+
+/* ==========================================================================
+   Toolbar
+   ========================================================================== */
+
+#\$toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border-top: 1px solid var(--bg3);
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-group .label {
+  font-size: 0.75rem;
+  color: var(--fg2);
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.switch-group .mode-label {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  border: 1px solid var(--bg3);
+  border-radius: var(--radius);
+  background: var(--bg3);
+  color: var(--fg);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+
+.btn:hover { background: #303040; }
+.btn:active { background: #3a3a50; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent); }
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.btn-danger:hover { background: #e06666; }
+
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+}
+
+.btn.active {
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: #fff;
+}
+
+.hidden { display: none !important; }
+
+/* ==========================================================================
+   Special Keys Panel
+   ========================================================================== */
+
+#\$keyPanel {
+  display: none;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border-top: 1px solid var(--bg3);
+  gap: 4px;
+}
+
+#\$keyPanel.visible {
+  display: flex;
+  flex-direction: column;
+}
+
+.key-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.key-btn {
+  padding: 6px 10px;
+  min-width: 36px;
+  border: 1px solid var(--bg3);
+  border-radius: var(--radius);
+  background: var(--bg3);
+  color: var(--fg);
+  font-size: 0.7rem;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+.key-btn:active { background: var(--accent2); }
+.key-btn.mod-btn { border-color: var(--accent); color: var(--accent); }
+
+/* ==========================================================================
+   Bottom Bar
+   ========================================================================== */
+
+#\$bottombar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border-top: 1px solid var(--bg3);
+}
+
+#\$statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#\$status {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-disconnected { color: var(--fg2); }
+.status-connecting   { color: var(--warning); }
+.status-connected    { color: var(--success); }
+.status-error        { color: var(--danger); }
+
+/* LED Indicators */
+.leds { display: flex; gap: 4px; }
+.led {
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg3);
+  color: var(--fg2);
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
+}
+.led.on {
+  background: var(--success);
+  color: #000;
+}
+
+/* Modifier Indicators */
+.mods { display: flex; gap: 4px; }
+.mod {
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg3);
+  color: var(--fg2);
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
+}
+.mod.on {
+  background: var(--accent2);
+  color: #fff;
+}
+
+/* ==========================================================================
+   Extras Row
+   ========================================================================== */
+
+#\$extrasRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.extras-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.extras-group label {
+  font-size: 0.7rem;
+  color: var(--fg2);
+}
+
+#\$rgbColor {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+}
+
+.paste-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+#\$pasteArea {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 8px;
+  border: 1px solid var(--bg3);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.75rem;
+  font-family: var(--mono);
+  resize: none;
+  height: 28px;
+  line-height: 1.4;
+}
+#\$pasteArea::placeholder { color: var(--fg2); }
+
+/* ==========================================================================
+   Fullscreen adjustments
+   ========================================================================== */
+
+#\$main:fullscreen #\$toolbar,
+#\$main:fullscreen #\$bottombar,
+#\$main:fullscreen #\$keyPanel {
+  /* Shown on hover in fullscreen */
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#\$main:fullscreen:hover #\$toolbar,
+#\$main:fullscreen:hover #\$bottombar,
+#\$main:fullscreen:hover #\$keyPanel {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   Responsive — narrow screens (mobile/tablet portrait)
+   ========================================================================== */
+
+@media (max-width: 600px) {
+  #\$toolbar {
+    gap: 4px;
+    padding: 4px 6px;
+  }
+  .btn {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+  .switch-group .mode-label {
+    display: none;
+  }
+  #\$bottombar {
+    padding: 4px 6px;
+  }
+  #\$extrasRow {
+    gap: 6px;
+  }
+  .key-btn {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+  }
+}
