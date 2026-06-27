@@ -1,6 +1,10 @@
 # KVM Card Mini — WebUSB 客户端
 
-基于 CH582F + MS2131 的 USB KVM 解决方案。在浏览器中直接控制目标机器的键盘、鼠标和视频，无需安装任何软件。
+## About
+
+**修改自 [ElluIFX/KVM-Card-Mini-PySide6](https://github.com/ElluIFX/KVM-Card-Mini-PySide6)**
+
+基于 CH582F + MS2131 的 USB KVM 解决方案（向日葵 Q0.5）。在浏览器中直接控制目标机器的键盘、鼠标和视频，无需安装任何软件。
 
 ```
 ┌──────────────┐    USB1 (WebUSB)    ┌──────────────┐    USB2 (HID)    ┌──────────────┐
@@ -43,7 +47,7 @@ bash build.sh
 
 ### 烧录
 
-使用 WCH-Link 或 WCHISPTool 烧录 `KVM-Card-Mini.hex` 到 CH582F。
+使用 WCHISPTool 烧录 `KVM-Card-Mini.hex` 到 CH582F。
 
 ### 主要修改（相比原始固件）
 
@@ -51,6 +55,8 @@ bash build.sh
 - USB1 接口类从 HID 改为 Vendor-Specific，确保 WebUSB 可独占接口
 - 扩展命令 0x03 响应，包含 MCU 状态标志
 - LED 事件驱动状态指示（适配 WS2812B 的 GRB 颜色顺序）
+
+**注意：**由于技术路线调整（WebUSB），不再兼容原版Python客户端
 
 ## Web 客户端
 
@@ -61,12 +67,12 @@ cd WebClient
 python -m http.server 8000
 ```
 
-在 Chrome/Edge 中打开 `http://localhost:8000`（桌面端）或 `http://<ip>:8000`（Android 平板）。
+在 Chrome/Edge 中打开 `http://localhost:8000`（桌面端）。
 
 ### 浏览器要求
 
 - **桌面端：** Chrome 61+ / Edge 79+（WebUSB + getUserMedia）
-- **Android 平板：** Chrome 61+（WebUSB 键鼠透传）
+- **Android 平板：** Chrome 61+（WebUSB 键鼠透传，不支持视频）
 - **不支持：** Firefox、Safari（无 WebUSB）
 
 ### 功能
