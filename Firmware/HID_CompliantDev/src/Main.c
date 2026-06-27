@@ -1399,6 +1399,12 @@ int main() {
   pU2EP2_RAM_Addr = U2EP2_Databuf;
   pU2EP3_RAM_Addr = U2EP3_Databuf;
 
+  /* 配置WS2812B GPIO */
+  GPIOA_ModeCfg(GPIO_Pin_13, GPIO_ModeOut_PP_20mA);
+
+  g_mcu_ready = 1;  // Set ready flag before USB init for correct LED state
+  UpdateStatusLED();  // Show red (USB1 not configured yet)
+
   USB_DeviceInit();
   USB2_DeviceInit();
 
@@ -1409,7 +1415,6 @@ int main() {
   //    GPIOA_ModeCfg(GPIO_Pin_15, GPIO_ModeIN_PD);
 
   /* 配置WS2812B GPIO */
-  GPIOA_ModeCfg(GPIO_Pin_13, GPIO_ModeOut_PP_20mA);
 #if DEBUG_PRT
   printf("RGB ON\n");
 #endif
@@ -1417,8 +1422,7 @@ int main() {
 
   mDelaymS(100);
 
-	  g_mcu_ready = 1; g_led_need_update = 1;
-
+	
   /* 配置USB Switch GPIO */
   GPIOB_ReadPortPin(GPIO_Pin_4) ? 1 : 0;
   GPIOB_ModeCfg(GPIO_Pin_4, GPIO_ModeOut_PP_20mA); // NMOS
