@@ -19,7 +19,7 @@ const VENDOR_ID  = 0x413D;
 const PRODUCT_ID = 0x2107;
 
 const EP_OUT = 1;    // endpoint 0x01 (host to device)
-const EP_IN  = 0x81; // endpoint 0x81 (device to host)
+const EP_IN  = 1;    // Chrome WebUSB uses raw number, NOT 0x81
 
 export class KVMDevice {
   constructor() {
@@ -136,47 +136,25 @@ export class KVMDevice {
    */
   async send(data) {
     if (!this._connected) throw new Error('Device not connected');
-    // Try both endpoint formats
-    const tryEps = [EP_OUT, 0x80 | EP_OUT]; // [1, 0x81]
-    let lastErr = null;
-    for (const epNum of tryEps) {
-      try {
-        const result = await this.device.transferOut(epNum, data);
-        if (result.status !== 'ok') {
-          console.warn('[KVMDevice] transferOut status:', result.status);
-        }
-        return result;
-      } catch (err) {
-        console.warn('[KVMDevice] transferOut failed on ep 0x' + epNum.toString(16) + ':', err.message);
-        lastErr = err;
-      }
+    const result = await this.device.transferOut(EP_OUT, data);
+    if (result.status !== 'ok') {
+      console.warn('[KVMDevice] transferOut status:', result.status);
     }
-    throw lastErr || new Error('transferOut failed on all endpoint formats');
+    return result;
   }
 
   /**
    * Read a response from EP1 IN (up to 64 bytes).
+   * Note: Chrome WebUSB uses the raw endpoint number (1), NOT the full address (0x81).
    * @returns {Promise<DataView>} Response data
    */
   async recv() {
     if (!this._connected) throw new Error('Device not connected');
-    // Try full address (0x81) first, fall back to just endpoint number (1)
-    const tryEps = [EP_IN, EP_IN & 0x7F]; // [0x81, 1]
-    let lastErr = null;
-    for (const epNum of tryEps) {
-      try {
-        const result = await this.device.transferIn(epNum, 64);
-        if (result.status !== 'ok') {
-          console.warn('[KVMDevice] transferIn status:', result.status, 'ep:', '0x' + epNum.toString(16));
-        }
-        console.log('[KVMDevice] transferIn OK on ep 0x' + epNum.toString(16));
-        return result.data;
-      } catch (err) {
-        console.warn('[KVMDevice] transferIn failed on ep 0x' + epNum.toString(16) + ':', err.message);
-        lastErr = err;
-      }
+    const result = await this.device.transferIn(EP_IN, 64);
+    if (result.status !== 'ok') {
+      console.warn('[KVMDevice] transferIn status:', result.status);
     }
-    throw lastErr || new Error('transferIn failed on all endpoint formats');
+    return result.data;
   }
 
   /**
