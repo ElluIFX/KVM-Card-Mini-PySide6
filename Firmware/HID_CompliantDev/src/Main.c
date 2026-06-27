@@ -96,6 +96,7 @@ uint8_t g_mcu_ready = 0;
 uint8_t g_usb2_kbd_active = 0;
 uint8_t g_usb2_mouse_active = 0;
 uint8_t g_led_auto_mode = 1;
+uint8_t g_led_need_update = 1;
 uint8_t led_tick = 0;
 
 // HID设备中断传输中上传给主机4字节的数据
@@ -591,7 +592,7 @@ void USB_DevTransProcess(void)  // USB设备传输中断处理
             break;
 
           case USB_SET_CONFIGURATION:  // 主机想设置设备当前配置
-            DevConfig = (pSetupReqPak->wValue) & 0xff;  // 取低八位，高八位抹去
+            DevConfig = (pSetupReqPak->wValue) & 0xff; g_led_need_update = 1;  // 取低八位，高八位抹去
             break;
 
           case USB_CLEAR_FEATURE:  // 关闭USB设备的特征/功能。可以是设备或是端点层面上的。
@@ -898,7 +899,7 @@ void USB2_DevTransProcess(void) {
           R8_U2EP1_CTRL ^= RB_UEP_T_TOG;
           R8_U2EP1_CTRL = (R8_U2EP1_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
           U2EP1_BUSY = 0;
-	          g_usb2_kbd_active = 1;
+	          g_usb2_kbd_active = 1; g_led_need_update = 1;
           break;
 
         case UIS_TOKEN_OUT | 2: {
@@ -913,7 +914,7 @@ void USB2_DevTransProcess(void) {
           R8_U2EP2_CTRL ^= RB_UEP_T_TOG;
           R8_U2EP2_CTRL = (R8_U2EP2_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
           U2EP2_BUSY = 0;
-	          g_usb2_mouse_active = 1;
+	          g_usb2_mouse_active = 1; g_led_need_update = 1;
           break;
 
         case UIS_TOKEN_OUT | 3: {
@@ -927,7 +928,7 @@ void USB2_DevTransProcess(void) {
         case UIS_TOKEN_IN | 3:
           R8_U2EP3_CTRL ^= RB_UEP_T_TOG;
           R8_U2EP3_CTRL = (R8_U2EP3_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
-	          g_usb2_mouse_active = 1;
+	          g_usb2_mouse_active = 1; g_led_need_update = 1;
           break;
 
         case UIS_TOKEN_OUT | 4: {
@@ -1105,7 +1106,7 @@ void USB2_DevTransProcess(void) {
             break;
 
           case USB_SET_CONFIGURATION:
-            U2DevConfig = (pU2SetupReqPak->wValue) & 0xff;
+            U2DevConfig = (pU2SetupReqPak->wValue) & 0xff; g_led_need_update = 1;
             break;
 
           case USB_CLEAR_FEATURE: {
@@ -1416,7 +1417,7 @@ int main() {
 
   mDelaymS(100);
 
-	  g_mcu_ready = 1;
+	  g_mcu_ready = 1; g_led_need_update = 1;
 
   /* 配置USB Switch GPIO */
   GPIOB_ReadPortPin(GPIO_Pin_4) ? 1 : 0;
@@ -1431,7 +1432,7 @@ int main() {
   uint8_t i;
   while (1) {
 	    led_tick++;
-	    if (g_led_auto_mode) UpdateStatusLED();
+	    if (g_led_need_update) { g_led_need_update = 0; if (g_led_auto_mode) UpdateStatusLED(); }
     if (mode != 0) {
       switch (mode) {
         case 1:
@@ -1456,17 +1457,14 @@ int main() {
  */
 void UpdateStatusLED(void) {
     unsigned char rgb_buf[3];
-    uint8_t blink = (led_tick / 10) & 1;
     if (!g_mcu_ready || !DevConfig) {
-        if (blink) { rgb_buf[0]=64; rgb_buf[1]=0; rgb_buf[2]=0; }
-        else       { rgb_buf[0]=0;  rgb_buf[1]=0; rgb_buf[2]=0; }
+        rgb_buf[0]=64; rgb_buf[1]=0; rgb_buf[2]=0;  // Red
     } else if (!U2DevConfig) {
-        rgb_buf[0]=64; rgb_buf[1]=32; rgb_buf[2]=0;
+        rgb_buf[0]=64; rgb_buf[1]=32; rgb_buf[2]=0;  // Yellow
     } else if (g_usb2_kbd_active || g_usb2_mouse_active) {
-        if ((led_tick/5)&1) { rgb_buf[0]=0; rgb_buf[1]=0; rgb_buf[2]=64; }
-        else                { rgb_buf[0]=0; rgb_buf[1]=0; rgb_buf[2]=0; }
+        rgb_buf[0]=0; rgb_buf[1]=0; rgb_buf[2]=64;   // Blue
     } else {
-        rgb_buf[0]=0; rgb_buf[1]=32; rgb_buf[2]=0;
+        rgb_buf[0]=0; rgb_buf[1]=32; rgb_buf[2]=0;   // Green
     }
     if (g_led_auto_mode) SendOnePix(rgb_buf);
 }
