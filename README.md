@@ -29,3 +29,5 @@ Simple KVM Console to USB
 > 因为git的问题, 文件夹Client/data似乎没自动从Data变更为data, 请手动改名再编译, 如果直接用release文件的话可以无视, 这个版本把data编译进单文件了, 只需要直接运行exe即可
 
 跨平台版本见cross-platform分支
+
+WebUSB/浏览器客户端版本见web分支
