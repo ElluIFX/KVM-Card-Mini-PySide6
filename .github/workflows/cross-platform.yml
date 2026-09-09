@@ -49,6 +49,7 @@ jobs:
           macos-target-arch: universal
           macos-app-icon: ./resources/icons/icon.png
           macos-app-mode: gui
+          macos-app-protected-resource: "NSCameraUsageDescription:Access the HDMI capture device for KVM video"
 
       #if build fail, upload nuitka-crash-report.xml
       - name: Upload Nuitka Crash Report

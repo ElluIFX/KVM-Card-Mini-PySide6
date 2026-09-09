@@ -86,6 +86,150 @@ def normalize_native_scancode(scancode: int) -> int:
     return LINUX_EVDEV_TO_SET1.get(evdev_code, evdev_code)
 
 
+
+# macOS Apple virtual key code -> PC/AT Set-1 scan code.
+#
+# Qt on macOS reports nativeScanCode() as 0, while
+# nativeVirtualKey() contains the usable Apple virtual key code.
+MACOS_VIRTUALKEY_TO_SET1 = {
+    # Letters
+    0x00: 0x1E,  # A
+    0x01: 0x1F,  # S
+    0x02: 0x20,  # D
+    0x03: 0x21,  # F
+    0x04: 0x23,  # H
+    0x05: 0x22,  # G
+    0x06: 0x2C,  # Z
+    0x07: 0x2D,  # X
+    0x08: 0x2E,  # C
+    0x09: 0x2F,  # V
+    0x0B: 0x30,  # B
+    0x0C: 0x10,  # Q
+    0x0D: 0x11,  # W
+    0x0E: 0x12,  # E
+    0x0F: 0x13,  # R
+    0x10: 0x15,  # Y
+    0x11: 0x14,  # T
+    0x1F: 0x18,  # O
+    0x20: 0x16,  # U
+    0x22: 0x17,  # I
+    0x23: 0x19,  # P
+    0x25: 0x26,  # L
+    0x26: 0x24,  # J
+    0x28: 0x25,  # K
+    0x2D: 0x31,  # N
+    0x2E: 0x32,  # M
+
+    # Number row
+    0x12: 0x02,  # 1
+    0x13: 0x03,  # 2
+    0x14: 0x04,  # 3
+    0x15: 0x05,  # 4
+    0x17: 0x06,  # 5
+    0x16: 0x07,  # 6
+    0x1A: 0x08,  # 7
+    0x1C: 0x09,  # 8
+    0x19: 0x0A,  # 9
+    0x1D: 0x0B,  # 0
+
+    # Symbols
+    0x1B: 0x0C,  # -
+    0x18: 0x0D,  # =
+    0x21: 0x1A,  # [
+    0x1E: 0x1B,  # ]
+    0x29: 0x27,  # ;
+    0x27: 0x28,  # '
+    0x32: 0x29,  # `
+    0x2A: 0x2B,  # backslash
+    0x2B: 0x33,  # ,
+    0x2F: 0x34,  # .
+    0x2C: 0x35,  # /
+
+    # Basic keys
+    0x24: 0x1C,  # Return
+    0x30: 0x0F,  # Tab
+    0x31: 0x39,  # Space
+    0x33: 0x0E,  # Mac Delete -> PC Backspace
+    0x35: 0x01,  # Escape
+    0x39: 0x3A,  # Caps Lock
+
+    # Modifiers
+    0x38: 0x002A,  # Left Shift
+    0x3C: 0x0036,  # Right Shift
+    0x3B: 0x001D,  # Left Control
+    0x3E: 0x011D,  # Right Control
+    0x3A: 0x0038,  # Left Option -> Left Alt
+    0x3D: 0x0138,  # Right Option -> Right Alt
+    0x37: 0x015B,  # Left Command -> Left Windows
+    0x36: 0x015C,  # Right Command -> Right Windows
+
+    # Function keys
+    0x7A: 0x3B,  # F1
+    0x78: 0x3C,  # F2
+    0x63: 0x3D,  # F3
+    0x76: 0x3E,  # F4
+    0x60: 0x3F,  # F5
+    0x61: 0x40,  # F6
+    0x62: 0x41,  # F7
+    0x64: 0x42,  # F8
+    0x65: 0x43,  # F9
+    0x6D: 0x44,  # F10
+    0x67: 0x57,  # F11
+    0x6F: 0x58,  # F12
+
+    # Navigation
+    0x72: 0x0152,  # Help -> Insert
+    0x73: 0x0147,  # Home
+    0x74: 0x0149,  # Page Up
+    0x75: 0x0153,  # Forward Delete
+    0x77: 0x014F,  # End
+    0x79: 0x0151,  # Page Down
+    0x7B: 0x014B,  # Left
+    0x7C: 0x014D,  # Right
+    0x7D: 0x0150,  # Down
+    0x7E: 0x0148,  # Up
+
+    # Numeric keypad
+    0x41: 0x53,    # .
+    0x43: 0x37,    # *
+    0x45: 0x4E,    # +
+    0x47: 0x45,    # Clear -> Num Lock
+    0x4B: 0x0135,  # /
+    0x4C: 0x011C,  # Enter
+    0x4E: 0x4A,    # -
+    0x52: 0x52,    # 0
+    0x53: 0x4F,    # 1
+    0x54: 0x50,    # 2
+    0x55: 0x51,    # 3
+    0x56: 0x4B,    # 4
+    0x57: 0x4C,    # 5
+    0x58: 0x4D,    # 6
+    0x59: 0x47,    # 7
+    0x5B: 0x48,    # 8
+    0x5C: 0x49,    # 9
+}
+
+
+def normalize_key_event(event):
+    if sys.platform == "darwin":
+        virtual_key = event.nativeVirtualKey()
+        scancode = MACOS_VIRTUALKEY_TO_SET1.get(virtual_key)
+
+        if scancode is None:
+            logger.debug(
+                f"Unmapped macOS key: "
+                f"virtual={virtual_key}, "
+                f"key={event.key()}, "
+                f"text={event.text()!r}"
+            )
+
+        return scancode
+
+    # Windows keeps the original native scan code.
+    # Linux continues through the Linux conversion that we already fixed.
+    return normalize_native_scancode(event.nativeScanCode())
+
+
 PATH = os.path.dirname(os.path.abspath(__file__))
 ARGV_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
 
@@ -569,7 +713,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.actionCustomKey.triggered.connect(self.shortcut_key_func)
         self.actionReload_Key_Mouse.triggered.connect(lambda: self.reset_keymouse(4))
         self.actionMinimize.triggered.connect(self.window_minimized)
-        self.actionexit.triggered.connect(sys.exit)
+        self.actionexit.triggered.connect(self.close)
 
         self.device_setup_dialog.comboBox.currentIndexChanged.connect(
             self.update_device_info
@@ -703,7 +847,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         self.camera_list_inited = False
         if self.video_config["auto_connect"]:
             self.device_setup_dialog.checkBoxAutoConnect.setChecked(True)
-            QTimer().singleShot(1000, lambda: self.set_device(True, center=True))
+            QTimer.singleShot(1000, lambda: self.set_device(True, center=True))
 
     code_remap = {
         "Rcontrol": 0x011D,
@@ -1041,10 +1185,6 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             self.audio_out_device = out_device
 
         self.camera.errorOccurred.connect(self.camera_error_occurred)
-        self.camera.start()
-        if not self.camera.isActive():
-            self.video_alert(self.tr("Video device connect failed"))
-            return False
 
         self.capture_session = QMediaCaptureSession()
         self.capture_session.setCamera(self.camera)
@@ -1091,6 +1231,11 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             # self.video_record.setAudioSampleRate(48000)
             # self.video_record.record()
             logger.debug("Audio device ok")
+        # The capture session is now fully configured.
+        # Camera activation can be asynchronous on macOS, so do not
+        # test isActive() immediately after start().
+        self.camera.start()
+
         return True
 
     # 保存当前帧到文件
@@ -2086,22 +2231,40 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if not self.status["mouse_capture"]:
             return
+
         if not self.status["relative_mouse"]:
             buffer = mouse_buffer
             bit = 7
         else:
             buffer = mouse_buffer_rel
             bit = 5
-        if event.angleDelta().y() == 120:
-            buffer[bit] = 0x01
-        elif event.angleDelta().y() == -120:
-            buffer[bit] = 0xFF
-        else:
-            buffer[bit] = 0
-        self._hid_signal.emit(buffer)
+
+        delta = event.angleDelta().y()
+        if delta == 0:
+            return
+
+        # macOS/high-resolution mice may report much smaller values
+        # than the traditional +/-120 wheel delta.
+        #
+        # Treat every non-zero wheel event as at least one HID step,
+        # while preserving faster scrolling for larger deltas.
+        magnitude = abs(delta)
+        steps = max(1, (magnitude + 60) // 120)
+
+        wheel_value = 0x01 if delta > 0 else 0xFF
+
+        for _ in range(steps):
+            buffer[bit] = wheel_value
+            self._hid_signal.emit(buffer.copy())
+
+        # Wheel movement is relative and must not remain pressed.
+        buffer[bit] = 0
+
         if self.mouse_scroll_timer.isActive():
             self.mouse_scroll_timer.stop()
         self.mouse_scroll_timer.start(100)
+
+        event.accept()
 
     def mouse_scroll_stop(self):
         self.mouse_scroll_timer.stop()
@@ -2346,7 +2509,9 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if kb_buffer[2] == 7 and event.key() == self.fullscreen_key:
             self.fullscreen_func()
             return
-        self.keyPress(normalize_native_scancode(event.nativeScanCode()))
+        scancode = normalize_key_event(event)
+        if scancode is not None:
+            self.keyPress(scancode)
 
     def keyPress(self, scancode: int):
         # Ctrl+Alt+Shift+V quick paste
@@ -2378,15 +2543,53 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if self.ignore_event:
             return
-        self.keyRelease(normalize_native_scancode(event.nativeScanCode()))
+        scancode = normalize_key_event(event)
+        if scancode is not None:
+            self.keyRelease(scancode)
 
     def keyRelease(self, scancode: int):
         self.update_kb(scancode, False)
         self.shortcut_status(kb_buffer)
 
+    def cleanup_before_exit(self):
+        if getattr(self, "_cleanup_done", False):
+            return
+
+        self._cleanup_done = True
+        logger.info("Cleaning up before exit")
+
+        # Stop the camera before Qt begins destroying multimedia objects.
+        try:
+            camera = getattr(self, "camera", None)
+            if camera is not None and camera.isActive():
+                camera.stop()
+        except Exception as e:
+            logger.debug(f"Failed to stop camera: {e}")
+
+        # Stop the local KVM server if it is active.
+        try:
+            server = getattr(self, "server", None)
+            if server is not None and server.running:
+                server.stop_server()
+        except Exception as e:
+            logger.debug(f"Failed to stop server: {e}")
+
+        # HidThread uses QThread's normal event loop.
+        # It must be stopped before PySide destroys the QThread object.
+        try:
+            thread = getattr(self, "_hid_thread", None)
+            if thread is not None and thread.isRunning():
+                thread.quit()
+                if thread.wait(3000):
+                    logger.info("HidThread stopped")
+                else:
+                    logger.warning("HidThread did not stop within 3 seconds")
+        except Exception as e:
+            logger.debug(f"Failed to stop HidThread: {e}")
+
     def closeEvent(self, event):
-        # os._exit(0)
-        pass
+        self.cleanup_before_exit()
+        event.accept()
 
     @Slot()
     def on_btnServerSwitch_clicked(self):
@@ -2731,7 +2934,29 @@ def main():
         # Compatibility with old PyQtDarkTheme on Python 3.12
         app.setStyleSheet(qdarktheme.load_stylesheet(theme_name))
 
+    app.aboutToQuit.connect(myWin.cleanup_before_exit)
     myWin.show()
+
+    # Request camera permission on macOS.
+    # On macOS this works when the application is running as an .app bundle
+    # with NSCameraUsageDescription in Info.plist.
+    if sys.platform == "darwin":
+        def request_camera_permission():
+            permission = QCameraPermission()
+            status = app.checkPermission(permission)
+            logger.info(f"Camera permission status: {status}")
+
+            if status == Qt.PermissionStatus.Undetermined:
+                app.requestPermission(
+                    permission,
+                    myWin,
+                    lambda result: logger.info(
+                        f"Camera permission result: {result.status()}"
+                    ),
+                )
+
+        QTimer.singleShot(0, request_camera_permission)
+
     QTimer.singleShot(100, myWin.shortcut_status)
     clear_splash()
     return app.exec()
