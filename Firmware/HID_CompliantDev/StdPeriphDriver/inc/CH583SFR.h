@@ -464,7 +464,7 @@ extern "C" {
 #define  RB_ADC_DATA        0x0FFF                    // RO, ADC conversion data
 #define R8_ADC_INT_FLAG     (*((PUINT8V)0x4000105E))  // RO, ADC interrupt flag register
 #define  RB_ADC_IF_EOC      0x80                      // RO, ADC conversion interrupt flag: 0=free or converting, 1=end of conversion, interrupt action, auto ADC or write R8_ADC_CONVERT or write R8_TKEY_CONVERT to clear flag
-#define R32_TKEY_CTRL       (*((PUINT8V)0x40001054))  // RW, Touchkey control
+#define R32_TKEY_CTRL       (*((PUINT32V)0x40001054)) // RW, Touchkey control
 #define R8_TKEY_COUNT       (*((PUINT8V)0x40001054))  // RW, Touchkey charge and discharge count
 #define  RB_TKEY_CHARG_CNT  0x1F                      // RW, Touchkey charge count
 #define  RB_TKEY_DISCH_CNT  0xE0                      // RW, Touchkey discharge count
@@ -1350,7 +1350,6 @@ extern "C" {
 #define  RB_UH_PORT_EN      0x01      // enable USB port: 0=disable, 1=enable port, automatic disabled if USB device detached
 
 #define R8_USB_INT_EN       (*((PUINT8V)0x40008002))  // USB interrupt enable
-#define  RB_UIE_DEV_SOF     0x80      // enable interrupt for SOF received for USB device mode
 #define  RB_UIE_DEV_NAK     0x40      // enable interrupt for NAK responded for USB device mode
 #define  RB_UIE_FIFO_OV     0x10      // enable interrupt for FIFO overflow
 #define  RB_UIE_HST_SOF     0x08      // enable interrupt for host SOF timer action for USB host mode
@@ -1392,7 +1391,6 @@ extern "C" {
 #define  RB_UIS_TOKEN0      0x10      // RO, current token PID code bit 0 received for USB device mode
 #define  MASK_UIS_TOKEN     0x30      // RO, bit mask of current token PID code received for USB device mode
 #define  UIS_TOKEN_OUT      0x00
-#define  UIS_TOKEN_SOF      0x10
 #define  UIS_TOKEN_IN       0x20
 #define  UIS_TOKEN_SETUP    0x30
 // bUIS_TOKEN1 & bUIS_TOKEN0: current token PID code received for USB device mode, keep last status during SETUP token, clear RB_UIF_TRANSFER ( RB_UIF_TRANSFER from 1 to 0 ) to set free

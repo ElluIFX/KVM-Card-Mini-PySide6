@@ -172,7 +172,7 @@ void GPIOA_ITModeCfg(uint32_t pin, GPIOITModeTpDef mode);
 /**
  * @brief   GPIOB引脚中断模式配置
  *
- * @param   pin     - PB0-PB23
+ * @param   pin     - PB0-PB15,PB22-PB23,PB[9:8]由RB_PIN_INTX选择对应PB[23:22]或PB[9:8]
  * @param   mode    - 触发类型
  */
 void GPIOB_ITModeCfg(uint32_t pin, GPIOITModeTpDef mode);
@@ -219,7 +219,7 @@ void GPIOB_ITModeCfg(uint32_t pin, GPIOITModeTpDef mode);
 /**
  * @brief   清除GPIOB端口引脚中断标志状态
  *
- * @param   pin     - PB0-PB23
+ * @param   pin     - PB0-PB15,PB22-PB23,PB[9:8]由RB_PIN_INTX选择对应PB[23:22]或PB[9:8]
  */
 #define GPIOB_ClearITFlagBit(pin)    (R16_PB_INT_IF = ((pin) | (((pin) & (GPIO_Pin_22 | GPIO_Pin_23)) >> 14)))
 

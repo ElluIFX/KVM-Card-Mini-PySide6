@@ -152,7 +152,7 @@ void GPIOA_ITModeCfg(uint32_t pin, GPIOITModeTpDef mode)
  *
  * @brief   GPIOB引脚中断模式配置
  *
- * @param   pin     - PB0-PB23
+ * @param   pin     - PB0-PB15,PB22-PB23,PB[9:8]由RB_PIN_INTX选择对应PB[23:22]或PB[9:8]
  * @param   mode    - 触发类型
  *
  * @return  none
