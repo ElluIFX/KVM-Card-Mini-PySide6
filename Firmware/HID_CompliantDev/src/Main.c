@@ -9,18 +9,24 @@
 #include "ws2812b.h"
 #define DEBUG_PRT 0
 #define DevEP0SIZE 0x40
+
 // 设备描述符
 const uint8_t MyDevDescr[] = {0x12, 0x01, 0x10, 0x01, 0x00, 0x00,
                               0x00, DevEP0SIZE, 0x3d, 0x41, 0x07, 0x21,
                               0x00, 0x01, 0x01, 0x02, 0x00, 0x01};
-// 配置描述符
+
+/* 配置描述符
+ * bNumEndpoints = 1 (只有 EP1 IN), wTotalLength = 0x22(34):
+ *   配置(9) + 接口(9) + HID(9) + EP1 IN(7) = 34
+ * iConfiguration / iInterface 置 0, 避免主机去读不存在的字符串描述符
+ */
 const uint8_t MyCfgDescr[] = {
-    0x09, 0x02, 0x29, 0x00, 0x01, 0x01, 0x04, 0xA0, 0x64,  // 配置描述符
-    0x09, 0x04, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x05,  // 接口描述符
+    0x09, 0x02, 0x22, 0x00, 0x01, 0x01, 0x00, 0xA0, 0x64,  // 配置描述符
+    0x09, 0x04, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00,  // 接口描述符
     0x09, 0x21, 0x00, 0x01, 0x00, 0x01, 0x22, 0x22, 0x00,  // HID类描述符
-    0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01,              // 端点描述符
-    0x07, 0x05, 0x01, 0x03, 0x40, 0x00, 0x01               // 端点描述符
+    0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01               // 端点描述符: EP1 IN
 };
+
 /*字符串描述符略*/
 /*HID类报表描述符*/
 const uint8_t HIDDescr[] = {0x06, 0x00, 0xff, 0x09,
@@ -64,7 +70,6 @@ uint8_t USB_SleepStatus = 0x00; /* USB睡眠状态 */
 uint8_t HID_Buf[10] = {0x0};
 
 /*HID上下行数据*/
-// uint8_t HIDInData[10] = {0x0};
 uint8_t HIDOutData[10] = {0x0};
 uint8_t HIDOutDataTrigger = 0;
 uint8_t HIDKeyLightsCode = 0;
@@ -112,48 +117,34 @@ const uint8_t U2MouseRepDesc[] = {
     0x25, 0x01,  // Logical Maximum (1)
     0x95, 0x05,  // Report Count (5)
     0x75, 0x01,  // Report Size (1)
-    0x81, 0x02,  // Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null
-                 // Position)
+    0x81, 0x02,  // Input
     0x75, 0x03,  // Report Size (3)
     0x95, 0x01,  // Report Count (1)
-    0x81, 0x03,  // Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No
-                 // Null Position)
+    0x81, 0x03,  // Input (Const)
     // Movement
     0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
     0x09, 0x30,        // Usage (X)
     0x09, 0x31,        // Usage (Y)
-    0x15, 0x00,        // LOGICAL_MINIMUM (0)       ; Note: 0x15 = 1 Byte; 0x16 = 2
-                       // Byte; 0x17 = 4 Byte
-    0x26, 0xFF, 0x7F,  // LOGICAL_MAXIMUM (32767)   ; Note: 0x25 = 1 Byte, 0x26
-                       // = 2 Byte; 0x27 = 4 Byte Report
+    0x15, 0x00,        // LOGICAL_MINIMUM (0)
+    0x26, 0xFF, 0x7F,  // LOGICAL_MAXIMUM (32767)
     0x35, 0x00,        // Physical Minimum (0)
     0x46, 0xff, 0x7f,  // Physical Maximum (32767)
     0x75, 0x10,        // REPORT_SIZE (16)
     0x95, 0x02,        // REPORT_COUNT (2)
-    0x81, 0x02,        // Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null
-                       // Position)
+    0x81, 0x02,        // Input
     // Wheel
     0x09, 0x38,  // Usage (Wheel)
     0x15, 0x81,  // Logical Minimum (-127)
     0x25, 0x7F,  // Logical Maximum (127)
-    0x35, 0x81,  // Physical Minimum (same as logical)
-    0x45, 0x7f,  // Physical Maximum (same as logical)
+    0x35, 0x81,  // Physical Minimum
+    0x45, 0x7f,  // Physical Maximum
     0x75, 0x08,  // Report Size (8)
     0x95, 0x01,  // Report Count (1)
-    0x81, 0x06,  // Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null
-                 // Position)
+    0x81, 0x06,  // Input
     0xC0,        //  End Collection
     0xC0         // End Collection
-
 };
 const uint8_t U2MouseRelDesc[] = {
-    // Relative
-    //  0x05, 0x01, 0x09, 0x02, 0xA1, 0x01, 0x09,
-    //  0x01, 0xA1, 0x00, 0x05, 0x09, 0x19, 0x01, 0x29, 0x03, 0x15, 0x00, 0x25,
-    //  0x01, 0x75, 0x01, 0x95, 0x03, 0x81, 0x02, 0x75, 0x05, 0x95, 0x01, 0x81,
-    //  0x01, 0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x38, 0x15, 0x81, 0x25,
-    //  0x7f, 0x75, 0x08, 0x95, 0x03, 0x81, 0x06, 0xC0, 0xC0
-
     // Relative
     0x05, 0x01,  // Usage Page (Generic Desktop)
     0x09, 0x02,  // Usage (Mouse)
@@ -169,38 +160,31 @@ const uint8_t U2MouseRelDesc[] = {
     0x25, 0x01,  // Logical Maximum (1)
     0x95, 0x05,  // Report Count (5)
     0x75, 0x01,  // Report Size (1)
-    0x81, 0x02,  // Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null
-                 // Position)
+    0x81, 0x02,  // Input
     0x75, 0x03,  // Report Size (3)
     0x95, 0x01,  // Report Count (1)
-    0x81, 0x03,  // Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No
-                 // Null Position)
+    0x81, 0x03,  // Input (Const)
 
-    // 0x05, 0x01, 0x09, 0x30, 0x09, 0x31,
+    // Movement
     0x05, 0x01,  // Usage Page (Generic Desktop Ctrls)
     0x09, 0x30,  // Usage (X)
     0x09, 0x31,  // Usage (Y)
-    0x15, 0x81,  // LOGICAL_MINIMUM (-127)       ; Note: 0x15 = 1 Byte; 0x16 =
-                 // 2 Byte; 0x17 = 4 Byte
-    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)   ; Note: 0x25 = 1 Byte, 0x26 = 2
-                 // Byte; 0x27 = 4 Byte Report
+    0x15, 0x81,  // LOGICAL_MINIMUM (-127)
+    0x25, 0x7F,  // LOGICAL_MAXIMUM (127)
     0x35, 0x81,  // Physical Minimum
     0x45, 0x7F,  // Physical Maximum
     0x75, 0x08,  // REPORT_SIZE (8)
     0x95, 0x02,  // REPORT_COUNT (2)
-    0x81, 0x06,  // Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null
-                 // Position)
+    0x81, 0x06,  // Input
 
     0x09, 0x38,  // Usage (Wheel)
     0x15, 0x81,  // Logical Minimum (-127)
     0x25, 0x7F,  // Logical Maximum (127)
-    0x35, 0x81,  // Physical Minimum (same as logical)
-    0x45, 0x7f,  // Physical Maximum (same as logical)
+    0x35, 0x81,  // Physical Minimum
+    0x45, 0x7f,  // Physical Maximum
     0x75, 0x08,  // Report Size (8)
     0x95, 0x01,  // Report Count (1)
-
-    0x81, 0x06,  // Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null
-                 // Position)
+    0x81, 0x06,  // Input
     0xC0, 0xC0   // End Collection
 };
 // 配置描述符
@@ -212,7 +196,6 @@ const uint8_t U2MyCfgDescr[] = {
     0x07, 0x05, 0x81, 0x03, 0x08, 0x00, 0x01,              // 端点描述符
 
     0x09, 0x04, 0x01, 0x00, 0x01, 0x03, 0x01, 0x02, 0x00,  // 接口描述符,鼠标
-    // 0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, 0x34, 0x00, // HID类描述符
     0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, sizeof (U2MouseRepDesc) & 0xFF,
     sizeof (U2MouseRepDesc) >> 8,                          // HID类描述符
     0x07, 0x05, 0x82, 0x03, 0x06, 0x00, 0x0a,              // 端点描述符 // 0x0a
@@ -221,7 +204,6 @@ const uint8_t U2MyCfgDescr[] = {
     0x09, 0x21, 0x10, 0x01, 0x00, 0x01, 0x22, sizeof (U2MouseRelDesc) & 0xFF,
     sizeof (U2MouseRelDesc) >> 8,                          // HID类描述符
     0x07, 0x05, 0x83, 0x03, 0x04, 0x00, 0x0a               // 端点描述符 // 0x0a
-
 };
 /* USB速度匹配描述符 */
 const uint8_t U2My_QueDescr[] = {0x0A, 0x06, 0x00, 0x02, 0xFF,
@@ -246,6 +228,7 @@ const uint8_t *pU2Descr;
 uint8_t U2Report_Value = 0x00;
 uint8_t U2Idle_Value = 0x00;
 uint8_t U2USB_SleepStatus = 0x00; /* USB睡眠状态 */
+uint8_t U2DevEP_Busy_flag[4] = {0x00};
 
 /*鼠标键盘数据*/
 uint8_t U2HIDMouseRel[6] = {0x0};
@@ -334,15 +317,26 @@ void USB_DevTransProcess (void)  // USB设备传输中断处理
                 }
             } break;
 
-            case UIS_TOKEN_OUT:     // 令牌包的PID为OUT，5:4位为00。3:0位的端点号为0。OUT令牌：主机给设备发数据。
-            {                       // 端点0为双向端点，用作控制传输。 “|0”运算省略了
+            case UIS_TOKEN_OUT:  // 令牌包的PID为OUT，5:4位为00。3:0位的端点号为0。OUT令牌：主机给设备发数据。
+            {                    // 端点0为双向端点，用作控制传输。 “|0”运算省略了
+                uint8_t i;
                 len =
                     R8_USB_RX_LEN;  // 读取当前USB接收长度寄存器中存储的接收的数据字节数
                                     // //接收长度寄存器为各个端点共用，发送长度寄存器各有各的
+
+                /* 控制传输的 OUT 数据阶段。
+                 * 上位机的 Output 报告现在通过 SET_REPORT 下发到这里,
+                 * 把数据搬到 EP1 OUT 缓冲区后, 复用 DevEP1_OUT_Deal() 的命令处理逻辑。 */
+                if (SetupReqCode == DEF_USB_SET_REPORT) {
+                    for (i = 0; i < len && i < 64; i++) {
+                        pEP1_OUT_DataBuf[i] = pEP0_DataBuf[i];
+                    }
+                    DevEP1_OUT_Deal (len);
+                }
             } break;
 
-            case UIS_TOKEN_OUT | 1:  // 令牌包的PID为OUT，端点号为1
-            {
+            case UIS_TOKEN_OUT | 1:       // 令牌包的PID为OUT，端点号为1
+            {                             // 中断 OUT 端点已从描述符中去掉(Output 改走 SET_REPORT), 此分支保留备用
                 if (R8_USB_INT_ST &
                     RB_UIS_TOG_OK)        // 硬件会判断是否正确的同步切换数据包，同步切换正确，这一位自动置位
                 {                         // 不同步的数据包将丢弃
@@ -687,14 +681,27 @@ void USB_DevTransProcess (void)  // USB设备传输中断处理
 
     else if (intflag & RB_UIF_BUS_RST)  // 判断_INT_FG中的总线复位标志位，为1触发
     {
-        R8_USB_DEV_AD = 0;              // 设备地址写成0，待主机重新分配给设备一个新地址
-        R8_UEP0_CTRL =
-            UEP_R_RES_ACK |
-            UEP_T_RES_NAK;  // 把端点0的控制寄存器，写成：接收响应响应ACK表示正常收到，发送响应NAK表示没有数据要返回
+        // 优先写 1 清除总线复位中断标识，防止重复触发中断
+        R8_USB_INT_FG = RB_UIF_BUS_RST;
+
+        // 2. 重置设备地址为 0，等待主机重新分配
+        R8_USB_DEV_AD = 0x00;
+
+        // 3. 复位端点 0 的控制状态（控制传输端点）
+        R8_UEP0_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
+
+        /*
+         * 4. 关键修复：重置应用端点 (EP1/EP2/EP3) 的响应状态，并强行清零 Toggle 位 (DATA0)
+         * 消除 RB_UEP_R_TOG 和 RB_UEP_T_TOG 标志，确保复位后传输的第一个包从 DATA0 开始
+         */
         R8_UEP1_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
         R8_UEP2_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
         R8_UEP3_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
-        R8_USB_INT_FG = RB_UIF_BUS_RST;  // 写1清中断标识
+
+        // 显式清除各端点的接收/发送 Toggle 翻转标志位（归位到 DATA0）
+        R8_UEP1_CTRL &= ~(RB_UEP_R_TOG | RB_UEP_T_TOG);
+        R8_UEP2_CTRL &= ~(RB_UEP_R_TOG | RB_UEP_T_TOG);
+        R8_UEP3_CTRL &= ~(RB_UEP_R_TOG | RB_UEP_T_TOG);
     } else if (
         intflag &
         RB_UIF_SUSPEND)  // 判断_INT_FG中的总线挂起或唤醒事件中断标志位。挂起和唤醒都会触发此中断
@@ -763,7 +770,7 @@ void DebugInit (void) {
 }
 
 /*********************************************************************
- * @fn      USB_DevTransProcess
+ * @fn      USB2_DevTransProcess
  *
  * @brief   USB2 传输处理函数
  *
@@ -835,7 +842,8 @@ void USB2_DevTransProcess (void) {
             case UIS_TOKEN_IN | 1:
                 R8_U2EP1_CTRL ^= RB_UEP_T_TOG;
                 R8_U2EP1_CTRL = (R8_U2EP1_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
-                U2EP1_BUSY = 0;
+                // U2EP1_BUSY = 0;
+                U2DevEP_Busy_flag[0] = 0;
                 break;
 
             case UIS_TOKEN_OUT | 2: {
@@ -849,7 +857,8 @@ void USB2_DevTransProcess (void) {
             case UIS_TOKEN_IN | 2:
                 R8_U2EP2_CTRL ^= RB_UEP_T_TOG;
                 R8_U2EP2_CTRL = (R8_U2EP2_CTRL & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
-                U2EP2_BUSY = 0;
+                // U2EP2_BUSY = 0;
+                U2DevEP_Busy_flag[1] = 0;
                 break;
 
             case UIS_TOKEN_OUT | 3: {
@@ -901,8 +910,9 @@ void USB2_DevTransProcess (void) {
                     /* 厂商请求 */
                 } else if (pU2SetupReqPak->bRequestType & 0x20) {
                     switch (U2SetupReqCode) {
-                    case DEF_USB_SET_IDLE:   /* 0x0A: SET_IDLE */
-                        U2Idle_Value = EP0_Databuf[3];
+                    case DEF_USB_SET_IDLE: /* 0x0A: SET_IDLE */
+                        /* 此处原先误写成 EP0_Databuf[3], 已修正为 U2EP0_Databuf[3] */
+                        U2Idle_Value = U2EP0_Databuf[3];
                         break;               // 这个一定要有
 
                     case DEF_USB_SET_REPORT: /* 0x09: SET_REPORT */
@@ -1262,7 +1272,7 @@ void USB2_DevTransProcess (void) {
 }
 
 /*********************************************************************
- * @fn      DevHIDMouseReport
+ * @fn      U2DevHIDMouseReport
  *
  * @brief   上报鼠标数据
  *
@@ -1272,6 +1282,7 @@ void U2DevHIDMouseReport (void) {
     uint8_t i;
     memcpy (pU2EP2_IN_DataBuf, U2HIDMouse, sizeof (U2HIDMouse));
     U2DevEP2_IN_Deal (sizeof (U2HIDMouse));
+    U2DevEP_Busy_flag[1] = 1;
 
 #if DEBUG_PRT
     for (i = 0; i < sizeof (U2HIDMouse); i++) {
@@ -1291,6 +1302,7 @@ void U2DevHIDMouseReport (void) {
 void U2DevHIDKeyReport (void) {
     memcpy (pU2EP1_IN_DataBuf, U2HIDKey, sizeof (U2HIDKey));
     U2DevEP1_IN_Deal (sizeof (U2HIDKey));
+    U2DevEP_Busy_flag[0] = 1;
 }
 
 /*********************************************************************
@@ -1315,6 +1327,10 @@ const uint8_t rgb_off[3] = {0x00, 0x00, 0x00};
 const uint8_t rgb_r[3] = {0x20, 0x00, 0x00};
 const uint8_t rgb_g[3] = {0x00, 0x20, 0x00};
 const uint8_t rgb_b[3] = {0x00, 0x00, 0x20};
+
+/* WS2812 输出请求(由 USB 处理里置位, 在主循环执行, 避免打断 USB 时序) */
+volatile uint8_t g_rgb_pending = 0;
+uint8_t g_rgb_buf[3] = {0x00, 0x00, 0x00};
 
 /*********************************************************************
  * @fn      main
@@ -1352,7 +1368,7 @@ int main() {
 #if DEBUG_PRT
     printf ("RGB ON\n");
 #endif
-    SendOnePix ((char *)rgb_ready);
+    SendOnePix ((unsigned char *)rgb_ready);
 
     mDelaymS (100);
 
@@ -1368,14 +1384,22 @@ int main() {
 
     uint8_t i;
     while (1) {
+        /* WS2812 输出在主循环执行, 不在 USB 中断里做时序 */
+        if (g_rgb_pending) {
+            g_rgb_pending = 0;
+            SendOnePix ((unsigned char *)g_rgb_buf);
+        }
+
         if (mode != 0) {
             switch (mode) {
             case 1:
-                while (U2EP1_BUSY) {
+                // wait U2EP1_BUSY
+                while (U2DevEP_Busy_flag[0]) {
                     __nop();
                 }
                 memcpy (pU2EP1_IN_DataBuf, empty_buf, 8);
                 U2DevEP1_IN_Deal (8);
+                U2DevEP_Busy_flag[0] = 1;
                 mode = 0;
                 break;
             default:
@@ -1390,59 +1414,72 @@ int main() {
  * @fn      DevEP1_OUT_Deal
  *
  * @brief   端点1数据处理，收到数据后取反再发出去。用户自行更改。
+ *          (USB1 的下行命令: 现在由控制传输 SET_REPORT 进入, 见 USB_DevTransProcess)
  *
  * @return  none
  */
-void DevEP1_OUT_Deal (uint8_t l) { /* 用户可自定义 */
+void DevEP1_OUT_Deal (uint8_t l) {
     switch (pEP1_OUT_DataBuf[0]) {
     case 1:
         memcpy (pU2EP1_IN_DataBuf, pEP1_OUT_DataBuf + 2, 8);
         U2DevEP1_IN_Deal (8);
+        U2DevEP_Busy_flag[0] = 1;
         break;
+
     case 2:
         memcpy (pU2EP2_IN_DataBuf, pEP1_OUT_DataBuf + 2, 6);
         U2DevEP2_IN_Deal (6);
+        U2DevEP_Busy_flag[1] = 1;
         break;
+
     case 3:
         HID_Buf[0] = 3;
         HID_Buf[2] = HIDKeyLightsCode;
         memcpy (pEP1_IN_DataBuf, HID_Buf, 10);
         DevEP1_IN_Deal (10);
         break;
+
     case 4:
+        // 执行系统复位前，先允许 USB 硬件 ACK 回复主机，避免主机误判为卡死
+        // R8_UEP1_CTRL = (R8_UEP1_CTRL & ~MASK_UEP_R_RES) | UEP_R_RES_ACK ^ RB_UEP_R_TOG;
+        // mDelaymS (1);  // 给 1ms 时间让 USB 硬件发送 ACK 包
         SYS_ResetExecute();
         break;
+
     case 5:
-        SendOnePix (pEP1_OUT_DataBuf + 2);
+        // WS2812 输出交给主循环执行(不再在中断里做时序)
+        g_rgb_buf[0] = pEP1_OUT_DataBuf[2];
+        g_rgb_buf[1] = pEP1_OUT_DataBuf[3];
+        g_rgb_buf[2] = pEP1_OUT_DataBuf[4];
+        g_rgb_pending = 1;
         break;
+
     case 6:
         memcpy (pU2EP1_IN_DataBuf, pEP1_OUT_DataBuf + 2, 8);
         U2DevEP1_IN_Deal (8);
+        U2DevEP_Busy_flag[0] = 1;
         mode = 1;
         break;
+
     case 7:
         memcpy (pU2EP3_IN_DataBuf, pEP1_OUT_DataBuf + 2, 4);
         U2DevEP3_IN_Deal (4);
         break;
 
     case 0x6F:
-        if (pEP1_OUT_DataBuf[2] == 0)  // 信号线悬空，电源断电
-        {
+        if (pEP1_OUT_DataBuf[2] == 0) {  // 信号线悬空，电源断电
             GPIOB_ResetBits (GPIO_Pin_4);
             GPIOB_SetBits (GPIO_Pin_7);
             GPIOA_SetBits (GPIO_Pin_12);
-        } else if (pEP1_OUT_DataBuf[2] == 1)  // 切换至上位机端，电源接通
-        {
+        } else if (pEP1_OUT_DataBuf[2] == 1) {  // 切换至上位机端，电源接通
             GPIOB_SetBits (GPIO_Pin_4);
             GPIOB_ResetBits (GPIO_Pin_7);
             GPIOA_ResetBits (GPIO_Pin_12);
-        } else if (pEP1_OUT_DataBuf[2] == 2)  // 切换至被控端，电源接通
-        {
+        } else if (pEP1_OUT_DataBuf[2] == 2) {  // 切换至被控端，电源接通
             GPIOB_SetBits (GPIO_Pin_4);
             GPIOB_SetBits (GPIO_Pin_7);
             GPIOA_ResetBits (GPIO_Pin_12);
-        } else if (pEP1_OUT_DataBuf[2] == 3)  // 状态查询
-        {
+        } else if (pEP1_OUT_DataBuf[2] == 3) {  // 状态查询
             HID_Buf[0] = 0x6F;
             HID_Buf[2] = 3;
             HID_Buf[3] = GPIOB_ReadPortPin (GPIO_Pin_4) ? 1 : 0;
@@ -1451,6 +1488,9 @@ void DevEP1_OUT_Deal (uint8_t l) { /* 用户可自定义 */
             memcpy (pEP1_IN_DataBuf, HID_Buf, 10);
             DevEP1_IN_Deal (10);
         }
+        break;
+
+    default:
         break;
     }
 }
@@ -1483,6 +1523,7 @@ void U2DevEP1_OUT_Deal (uint8_t l) { /* 用户可自定义 */
         pU2EP1_IN_DataBuf[i] = ~pU2EP1_OUT_DataBuf[i];
     }
     U2DevEP1_IN_Deal (l);
+    U2DevEP_Busy_flag[0] = 1;
 }
 
 /*********************************************************************
@@ -1499,6 +1540,7 @@ void U2DevEP2_OUT_Deal (uint8_t l) { /* 用户可自定义 */
         pU2EP2_IN_DataBuf[i] = ~pU2EP2_OUT_DataBuf[i];
     }
     U2DevEP2_IN_Deal (l);
+    U2DevEP_Busy_flag[1] = 1;
 }
 
 /*********************************************************************
